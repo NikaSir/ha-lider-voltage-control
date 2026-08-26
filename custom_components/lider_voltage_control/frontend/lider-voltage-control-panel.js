@@ -14,6 +14,11 @@ const ENTITY_MAP = Object.freeze({
     B: "sensor.power_monitor_power_b",
     C: "sensor.power_monitor_power_c",
   },
+  current: {
+    A: "sensor.power_monitor_current_a",
+    B: "sensor.power_monitor_current_b",
+    C: "sensor.power_monitor_current_c",
+  },
   lineUniqueId: "W0035313411160_input_voltage",
   meterOnline: "binary_sensor.power_meter_online",
   phaseLoss: "binary_sensor.power_phase_loss",
@@ -131,7 +136,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.3.2</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.3.3</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -270,11 +275,11 @@ class LiderVoltageControlPanel extends HTMLElement {
         ["A", "B", "C"].map((phase) => this._metricCard("Фаза " + phase, entities[phase], policy, true)).join("") +
       '</section>' +
       (policy === "before"
-        ? '<section class="panel-card"><div class="section-head"><h2>Мощность по фазам</h2></div><div class="diagnostic-grid">' +
+        ? '<section class="panel-card"><div class="section-head"><h2>Мощность по фазам</h2></div><div class="phase-diagnostic-grid">' +
             ["A", "B", "C"].map((phase) => this._diagnosticCard(ENTITY_MAP.power[phase], "Фаза " + phase)).join("") +
           '</div></section>' +
           this._diagnosticSection("Диагностика входного измерителя", this._diagnosticEntities.before,
-            [...Object.values(entities), ...Object.values(ENTITY_MAP.power)])
+            [...Object.values(entities), ...Object.values(ENTITY_MAP.power)], Object.values(ENTITY_MAP.current))
         : ["A", "B", "C"].map((phase) =>
             this._diagnosticSection("Диагностика розетки · фаза " + phase,
               this._diagnosticEntities.after[phase], [entities[phase]])
@@ -326,14 +331,20 @@ class LiderVoltageControlPanel extends HTMLElement {
     '</button>';
   }
 
-  _diagnosticSection(title, entityIds, excluded = []) {
+  _diagnosticSection(title, entityIds, excluded = [], phaseEntityIds = []) {
     const excludedSet = new Set(excluded.filter(Boolean));
     const entities = [...new Set(entityIds || [])]
       .filter((entityId) => !excludedSet.has(entityId) && this._hass?.states?.[entityId]);
     if (!entities.length) return '';
+    const phaseSet = new Set(phaseEntityIds.filter(Boolean));
+    const phaseEntities = entities.filter((entityId) => phaseSet.has(entityId));
+    const otherEntities = entities.filter((entityId) => !phaseSet.has(entityId));
     return '<section class="panel-card diagnostic-section">' +
       '<div class="section-head"><h2>' + title + '</h2></div>' +
-      '<div class="diagnostic-grid">' + entities.map((entityId) => this._diagnosticCard(entityId)).join('') + '</div>' +
+      (phaseEntities.length ? '<div class="phase-diagnostic-grid">' +
+        phaseEntities.map((entityId) => this._diagnosticCard(entityId)).join('') + '</div>' : '') +
+      (otherEntities.length ? '<div class="diagnostic-grid">' +
+        otherEntities.map((entityId) => this._diagnosticCard(entityId)).join('') + '</div>' : '') +
     '</section>';
   }
 
@@ -634,10 +645,10 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".viewport{position:fixed;inset:calc(72px + env(safe-area-inset-top)) 0 calc(70px + env(safe-area-inset-bottom)) 0;overflow-x:hidden;overflow-y:auto;overscroll-behavior-x:none;touch-action:pan-y;-webkit-overflow-scrolling:touch}",
       ".viewport.zoomed{overflow:hidden;overscroll-behavior:none;touch-action:none}",
       ".canvas{width:100%;min-height:100%;transform-origin:0 0;will-change:transform;padding:14px 14px 28px}",
-      ".page{width:min(100%,760px);margin:0 auto;display:grid;gap:12px}",
+      ".page{width:min(100%,760px);margin:0 auto;display:grid;gap:9px}",
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
-      ".hero{min-height:126px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px}",
-      ".hero.compact{min-height:104px}",
+      ".hero{min-height:110px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}",
+      ".hero.compact{min-height:80px;padding:12px 16px}",
       ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.2') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
       ".installation-equipment{position:absolute;z-index:1;left:54%;bottom:3%;height:82%;width:auto;max-width:60%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
       ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
@@ -667,24 +678,25 @@ class LiderVoltageControlPanel extends HTMLElement {
       "h2{font-size:17px}",
       ".hero p,.line-card p,.line-focus p,.note{margin-top:7px;color:var(--secondary-text-color,#68737d);font-size:13px;line-height:1.4}",
       ".badge{padding:8px 11px;border-radius:999px;font-weight:750;font-size:12px;text-align:center;white-space:nowrap}",
-      ".panel-card{padding:15px}",
-      ".section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}",
-      ".phase-grid,.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}",
-      ".metric{min-width:0;min-height:104px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid var(--divider-color,#dfe3e8);border-radius:17px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 5%,var(--card-background-color,#fff))}",
-      ".metric.large{min-height:146px}",
+      ".panel-card{padding:11px}",
+      ".section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}",
+      ".phase-grid,.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}",
+      ".metric{min-width:0;min-height:76px;padding:7px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:1px solid var(--divider-color,#dfe3e8);border-radius:15px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 5%,var(--card-background-color,#fff))}",
+      ".metric.large{min-height:94px}",
       ".metric-label{color:var(--secondary-text-color,#68737d);font-size:12px}",
       ".metric strong{font-size:20px}",
       ".metric small{font-size:10px;line-height:1.2}",
-      ".diagnostic-section{display:grid;gap:2px}",
-      ".diagnostic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}",
-      ".diagnostic-metric{min-width:0;min-height:62px;border:1px solid var(--divider-color,#dfe3e8);border-radius:14px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 4%,var(--card-background-color,#fff));padding:9px 10px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;text-align:left}",
+      ".diagnostic-section{display:grid;gap:6px}",
+      ".diagnostic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}",
+      ".phase-diagnostic-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}",
+      ".diagnostic-metric{min-width:0;min-height:50px;border:1px solid var(--divider-color,#dfe3e8);border-radius:13px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 4%,var(--card-background-color,#fff));padding:6px 8px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;text-align:left}",
       ".diagnostic-metric span{width:100%;font-size:10px;color:var(--secondary-text-color,#68737d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.diagnostic-metric strong{font-size:14px}",
       ".flow{text-align:center;color:var(--primary-color,#03a9d9);font-size:12px;letter-spacing:.08em;padding:1px}",
       ".line-card{display:grid;grid-template-columns:1fr 145px;align-items:center;gap:10px}",
-      ".line-focus{display:grid;gap:13px;text-align:center}",
-      ".thresholds{padding:16px}",
-      ".thresholds p{margin-top:8px;color:var(--secondary-text-color,#68737d);font-size:13px;line-height:1.55}",
-      ".note{text-align:center;padding:0 10px 18px}",
+      ".line-focus{display:grid;gap:7px;text-align:center}",
+      ".thresholds{padding:11px}",
+      ".thresholds p{margin-top:6px;color:var(--secondary-text-color,#68737d);font-size:13px;line-height:1.4}",
+      ".note{text-align:center;padding:0 8px 10px}",
       ".normal{color:var(--success-color,#2e7d32);background:color-mix(in srgb,var(--success-color,#2e7d32) 11%,#fff);border-color:color-mix(in srgb,var(--success-color,#2e7d32) 30%,transparent)}",
       ".attention{color:var(--warning-color,#ed8b00);background:color-mix(in srgb,var(--warning-color,#ed8b00) 12%,#fff);border-color:color-mix(in srgb,var(--warning-color,#ed8b00) 32%,transparent)}",
       ".significant{color:#d96500;background:#fff1e5;border-color:#efad71}",
@@ -697,7 +709,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".tabs button.active{color:var(--primary-color,#03a9d9);background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
       ".zoom-toast{position:fixed;z-index:40;left:50%;top:calc(78px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(30,34,38,.9);color:#fff;font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
-      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:16px}.hero h1{font-size:22px}.installation{min-height:540px}.installation-equipment{left:55%;height:81%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:32%}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.input-metrics{gap:3px}.scene-reading b,.scene-power b{font-size:11px}.installation-caption{left:12px;right:12px;bottom:11px}.installation-caption span{font-size:9px}.installation-caption strong{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{white-space:nowrap}}",
+      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:540px}.installation-equipment{left:55%;height:81%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:32%}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.input-metrics{gap:3px}.scene-reading b,.scene-power b{font-size:11px}.installation-caption{left:12px;right:12px;bottom:11px}.installation-caption span{font-size:9px}.installation-caption strong{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{white-space:nowrap}}",
     ].join("");
   }
 }

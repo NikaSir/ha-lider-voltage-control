@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3
+
+- Compacted detail cards by reducing unused height, padding and section gaps without reducing font sizes.
+- Kept phase voltages A/B/C in one row.
+- Placed phase powers A/B/C and phase currents A/B/C in dedicated three-column rows.
+- Kept long diagnostics in two columns for readable names, dates and values.
+
 ## 0.3.2
 
 - Removed the redundant `ЭЛЕКТРОСЕТЬ` eyebrow from the overview scene.
