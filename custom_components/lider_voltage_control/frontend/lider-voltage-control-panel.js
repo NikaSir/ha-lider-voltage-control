@@ -26,6 +26,7 @@ const ENTITY_MAP = Object.freeze({
 
 const ZOOM_KEY = "nikas.lider.zoom.v1";
 const VIEW_KEY = "nikas.lider.view.v1";
+const HISTORY_PERIOD_KEY = "nikas.lider.history_period.v1";
 
 class LiderVoltageControlPanel extends HTMLElement {
   constructor() {
@@ -41,6 +42,8 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._registryLoaded = false;
     this._registryLoading = false;
     this._diagnosticEntities = { before: [], after: { A: [], B: [], C: [] }, line: [] };
+    this._historyPeriod = localStorage.getItem(HISTORY_PERIOD_KEY) || "24h";
+    this._historyCards = [];
   }
 
   set hass(value) {
@@ -51,7 +54,11 @@ class LiderVoltageControlPanel extends HTMLElement {
     if (!this._registryLoaded && !this._registryLoading) {
       this._resolveRegistryEntities();
     }
-    this._renderContent();
+    if (this._view === "history" && this._historyCards.length) {
+      this._historyCards.forEach((card) => { card.hass = value; });
+    } else {
+      this._renderContent();
+    }
   }
 
   get hass() {
@@ -136,7 +143,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.3.3</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.0</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -147,6 +154,7 @@ class LiderVoltageControlPanel extends HTMLElement {
           this._tabButton("before", "mdi:arrow-right-bold", "До LIDER") +
           this._tabButton("after", "mdi:arrow-left-bold", "После") +
           this._tabButton("line", "mdi:lightning-bolt-outline", "Линия") +
+          this._tabButton("history", "mdi:chart-line", "Статистика") +
         '</nav>' +
         '<div class="zoom-toast" aria-live="polite">Масштаб 100%</div>' +
       '</div>';
@@ -172,6 +180,13 @@ class LiderVoltageControlPanel extends HTMLElement {
       this._renderContent();
     });
     this._canvas.addEventListener("click", (event) => {
+      const periodButton = event.target.closest("[data-history-period]");
+      if (periodButton) {
+        this._historyPeriod = periodButton.dataset.historyPeriod;
+        localStorage.setItem(HISTORY_PERIOD_KEY, this._historyPeriod);
+        this._renderContent();
+        return;
+      }
       const target = event.target.closest("[data-entity]");
       if (!target || this._gesture?.moved) return;
       this.dispatchEvent(new CustomEvent("hass-more-info", {
@@ -200,11 +215,17 @@ class LiderVoltageControlPanel extends HTMLElement {
       before: () => this._detailGroup("До стабилизаторов", ENTITY_MAP.before, "before"),
       after: () => this._detailGroup("После стабилизаторов", ENTITY_MAP.after, "quality"),
       line: () => this._lineView(),
+      history: () => this._historyView(),
     };
     this._canvas.innerHTML = (renderers[this._view] || renderers.overview)();
     this.shadowRoot.querySelectorAll(".tabs button").forEach((button) => {
       button.classList.toggle("active", button.dataset.view === this._view);
     });
+    if (this._view === "history") {
+      requestAnimationFrame(() => this._mountHistoryCards());
+    } else {
+      this._historyCards = [];
+    }
     requestAnimationFrame(() => this._applyTransform());
   }
 
@@ -269,24 +290,163 @@ class LiderVoltageControlPanel extends HTMLElement {
       ? "Норма 150–265 В · отклонение 135–150 В · предаварийно 125–135 / 265–275 В · авария &lt;125 / &gt;275 В"
       : "Норма 210–230 В · внимание 205–210 / 230–235 В · существенно 198–205 / 235–242 В · авария &lt;198 / &gt;242 В";
     return '<div class="page">' +
-      '<section class="hero compact"><div><span class="eyebrow">LIDER</span><h1>' + title + '</h1></div>' +
+      '<section class="hero compact"><div class="hero-title"><h1>' + title + '</h1></div>' +
       this._groupBadge(entities, policy) + '</section>' +
-      '<section class="panel-card detail-grid">' +
-        ["A", "B", "C"].map((phase) => this._metricCard("Фаза " + phase, entities[phase], policy, true)).join("") +
+      '<section class="panel-card phase-telemetry-grid">' +
+        ["A", "B", "C"].map((phase) => this._phaseTelemetryColumn(phase, entities, policy)).join("") +
       '</section>' +
       (policy === "before"
-        ? '<section class="panel-card"><div class="section-head"><h2>Мощность по фазам</h2></div><div class="phase-diagnostic-grid">' +
-            ["A", "B", "C"].map((phase) => this._diagnosticCard(ENTITY_MAP.power[phase], "Фаза " + phase)).join("") +
-          '</div></section>' +
-          this._diagnosticSection("Диагностика входного измерителя", this._diagnosticEntities.before,
-            [...Object.values(entities), ...Object.values(ENTITY_MAP.power)], Object.values(ENTITY_MAP.current))
+        ? this._diagnosticSection("Диагностика входного измерителя", this._diagnosticEntities.before,
+            [...Object.values(entities), ...Object.values(ENTITY_MAP.current), ...Object.values(ENTITY_MAP.power)])
         : ["A", "B", "C"].map((phase) =>
             this._diagnosticSection("Диагностика розетки · фаза " + phase,
-              this._diagnosticEntities.after[phase], [entities[phase]])
+              this._diagnosticEntities.after[phase], [
+                entities[phase],
+                this._relatedAfterEntity(phase, "current"),
+                this._relatedAfterEntity(phase, "power"),
+              ])
           ).join("")) +
       '<section class="thresholds"><h2>Граничные значения</h2><p>' + thresholds + '</p></section>' +
       (policy === "quality" ? '<p class="note">Выходные A/B/C — подтверждённые временные контрольные точки старой панели. Постоянные датчики заменят их без изменения интерфейса.</p>' : '') +
     '</div>';
+  }
+
+  _phaseTelemetryColumn(phase, voltageEntities, policy) {
+    const before = policy === "before";
+    const currentEntity = before ? ENTITY_MAP.current[phase] : this._relatedAfterEntity(phase, "current");
+    const powerEntity = before ? ENTITY_MAP.power[phase] : this._relatedAfterEntity(phase, "power");
+    return '<div class="phase-telemetry-column">' +
+      '<h2>Фаза ' + phase + '</h2>' +
+      this._measurementCard("Напряжение", voltageEntities[phase], policy, before) +
+      this._measurementCard("Ток", currentEntity, null, before) +
+      this._measurementCard("Мощность", powerEntity, null, before) +
+    '</div>';
+  }
+
+  _measurementCard(label, entityId, policy = null, requiresInput = false) {
+    const state = entityId ? this._hass?.states?.[entityId] : null;
+    const rawAvailable = Boolean(state) && !["unknown", "unavailable", "none", ""]
+      .includes(String(state.state).toLowerCase());
+    const available = rawAvailable && (!requiresInput || this._inputTelemetryState() === "ok");
+    const reading = policy ? this._reading(entityId) : null;
+    const severity = !available ? "unavailable" : (policy ? this._severity(reading.value, policy) : "neutral");
+    const entityAttr = entityId ? ' data-entity="' + entityId + '"' : '';
+    const value = available
+      ? (policy ? this._number(reading.value) + ' В' : this._stateText(entityId))
+      : 'Нет данных';
+    return '<button class="metric phase-measurement ' + severity + '"' + entityAttr + '>' +
+      '<span class="metric-label">' + label + '</span>' +
+      '<strong>' + value + '</strong>' +
+      '<small>' + (policy ? this._severityLabel(severity) : '&nbsp;') + '</small>' +
+    '</button>';
+  }
+
+  _relatedAfterEntity(phase, kind) {
+    const voltageEntity = ENTITY_MAP.after[phase];
+    const exact = voltageEntity.replace(/_voltage$/, '_' + kind);
+    if (this._hass?.states?.[exact]) return exact;
+    const namePattern = kind === "current" ? /ток|current/i : /мощност|power/i;
+    return (this._diagnosticEntities.after[phase] || []).find((entityId) => {
+      if (entityId === voltageEntity || /energy|энерги/i.test(entityId)) return false;
+      const friendlyName = this._hass?.states?.[entityId]?.attributes?.friendly_name || "";
+      return namePattern.test(entityId) || namePattern.test(friendlyName);
+    }) || exact;
+  }
+
+  _historyView() {
+    const periods = [
+      ["24h", "24 часа"],
+      ["7d", "7 дней"],
+      ["30d", "30 дней"],
+      ["12m", "12 месяцев"],
+    ];
+    return '<div class="page history-page">' +
+      '<section class="hero compact"><div class="hero-title"><h1>Статистика</h1></div>' +
+      '<span class="badge neutral">' + periods.find(([id]) => id === this._historyPeriod)[1] + '</span></section>' +
+      '<section class="panel-card history-periods" aria-label="Период статистики">' +
+        periods.map(([id, label]) => '<button data-history-period="' + id + '" class="' +
+          (id === this._historyPeriod ? 'active' : '') + '">' + label + '</button>').join('') +
+      '</section>' +
+      this._historyHost("before-voltage") +
+      this._historyHost("after-voltage") +
+      this._historyHost("before-current") +
+      this._historyHost("after-current") +
+      this._historyHost("before-power") +
+      this._historyHost("after-power") +
+      this._historyHost("line-voltage") +
+      '<p class="note">Графики построены штатной статистикой Home Assistant. Нажатие на легенду управляет отображением ряда.</p>' +
+    '</div>';
+  }
+
+  _historyHost(id) {
+    return '<section class="history-card-host" data-history-card="' + id + '">' +
+      '<div class="history-loading">Загрузка статистики…</div>' +
+    '</section>';
+  }
+
+  async _mountHistoryCards() {
+    if (this._view !== "history") return;
+    const period = {
+      "24h": { days: 1, bucket: "5minute" },
+      "7d": { days: 7, bucket: "hour" },
+      "30d": { days: 30, bucket: "day" },
+      "12m": { days: 365, bucket: "month" },
+    }[this._historyPeriod];
+    try {
+      const helpers = await window.loadCardHelpers();
+      if (this._view !== "history") return;
+      const configs = this._historyCardConfigs(period);
+      this._historyCards = [];
+      for (const [id, config] of Object.entries(configs)) {
+        const host = this._canvas.querySelector('[data-history-card="' + id + '"]');
+        if (!host) continue;
+        const card = helpers.createCardElement(config);
+        card.hass = this._hass;
+        host.replaceChildren(card);
+        this._historyCards.push(card);
+      }
+    } catch (_err) {
+      this._canvas.querySelectorAll(".history-loading").forEach((node) => {
+        node.textContent = "Статистика Home Assistant недоступна";
+      });
+    }
+  }
+
+  _historyCardConfigs(period) {
+    const phases = ["A", "B", "C"];
+    const entityList = (map, prefix) => phases.map((phase) => ({
+      entity: map[phase],
+      name: prefix + " " + phase,
+    }));
+    const afterRelated = (kind) => Object.fromEntries(
+      phases.map((phase) => [phase, this._relatedAfterEntity(phase, kind)])
+    );
+    const graph = (title, entities, statTypes = ["mean", "max"]) => ({
+      type: "statistics-graph",
+      title,
+      chart_type: "line",
+      entities,
+      days_to_show: period.days,
+      period: period.bucket,
+      stat_types: statTypes,
+      hide_legend: false,
+      fit_y_data: true,
+    });
+    const configs = {
+      "before-voltage": graph("Вход · напряжение", entityList(ENTITY_MAP.before, "Фаза"), ["min", "mean", "max"]),
+      "after-voltage": graph("Выход · напряжение", entityList(ENTITY_MAP.after, "Фаза"), ["min", "mean", "max"]),
+      "before-current": graph("Вход · ток", entityList(ENTITY_MAP.current, "Фаза")),
+      "after-current": graph("Выход · ток", entityList(afterRelated("current"), "Фаза")),
+      "before-power": graph("Вход · мощность", entityList(ENTITY_MAP.power, "Фаза")),
+      "after-power": graph("Выход · мощность", entityList(afterRelated("power"), "Фаза")),
+    };
+    if (this._lineEntity()) {
+      configs["line-voltage"] = graph("Неотключаемая линия · напряжение", [{
+        entity: this._lineEntity(),
+        name: "UPS Котёл",
+      }], ["min", "mean", "max"]);
+    }
+    return configs;
   }
 
   _lineView() {
@@ -331,20 +491,14 @@ class LiderVoltageControlPanel extends HTMLElement {
     '</button>';
   }
 
-  _diagnosticSection(title, entityIds, excluded = [], phaseEntityIds = []) {
+  _diagnosticSection(title, entityIds, excluded = []) {
     const excludedSet = new Set(excluded.filter(Boolean));
     const entities = [...new Set(entityIds || [])]
       .filter((entityId) => !excludedSet.has(entityId) && this._hass?.states?.[entityId]);
     if (!entities.length) return '';
-    const phaseSet = new Set(phaseEntityIds.filter(Boolean));
-    const phaseEntities = entities.filter((entityId) => phaseSet.has(entityId));
-    const otherEntities = entities.filter((entityId) => !phaseSet.has(entityId));
     return '<section class="panel-card diagnostic-section">' +
       '<div class="section-head"><h2>' + title + '</h2></div>' +
-      (phaseEntities.length ? '<div class="phase-diagnostic-grid">' +
-        phaseEntities.map((entityId) => this._diagnosticCard(entityId)).join('') + '</div>' : '') +
-      (otherEntities.length ? '<div class="diagnostic-grid">' +
-        otherEntities.map((entityId) => this._diagnosticCard(entityId)).join('') + '</div>' : '') +
+      '<div class="diagnostic-grid">' + entities.map((entityId) => this._diagnosticCard(entityId)).join('') + '</div>' +
     '</section>';
   }
 
@@ -676,21 +830,30 @@ class LiderVoltageControlPanel extends HTMLElement {
       "h1,h2,p{margin:0}",
       "h1{font-size:25px;margin-top:5px}",
       "h2{font-size:17px}",
+      ".hero-title h1{margin-top:0}",
       ".hero p,.line-card p,.line-focus p,.note{margin-top:7px;color:var(--secondary-text-color,#68737d);font-size:13px;line-height:1.4}",
       ".badge{padding:8px 11px;border-radius:999px;font-weight:750;font-size:12px;text-align:center;white-space:nowrap}",
       ".panel-card{padding:11px}",
       ".section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}",
       ".phase-grid,.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}",
+      ".phase-telemetry-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}",
+      ".phase-telemetry-column{min-width:0;display:grid;grid-template-rows:auto repeat(3,minmax(68px,auto));gap:5px}",
+      ".phase-telemetry-column h2{text-align:center;font-size:13px;line-height:1.2}",
       ".metric{min-width:0;min-height:76px;padding:7px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:1px solid var(--divider-color,#dfe3e8);border-radius:15px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 5%,var(--card-background-color,#fff))}",
       ".metric.large{min-height:94px}",
+      ".metric.phase-measurement{min-height:68px}",
       ".metric-label{color:var(--secondary-text-color,#68737d);font-size:12px}",
       ".metric strong{font-size:20px}",
       ".metric small{font-size:10px;line-height:1.2}",
       ".diagnostic-section{display:grid;gap:6px}",
       ".diagnostic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}",
-      ".phase-diagnostic-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}",
       ".diagnostic-metric{min-width:0;min-height:50px;border:1px solid var(--divider-color,#dfe3e8);border-radius:13px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 4%,var(--card-background-color,#fff));padding:6px 8px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;text-align:left}",
       ".diagnostic-metric span{width:100%;font-size:10px;color:var(--secondary-text-color,#68737d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.diagnostic-metric strong{font-size:14px}",
+      ".history-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}",
+      ".history-periods button{min-width:0;min-height:42px;padding:6px 4px;border:1px solid var(--divider-color,#dfe3e8);border-radius:13px;background:transparent;color:var(--secondary-text-color,#68737d);font:inherit;font-size:11px;font-weight:700;line-height:1.15}",
+      ".history-periods button.active{color:var(--primary-color,#03a9d9);border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 32%,var(--divider-color,#dfe3e8));background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
+      ".history-card-host{min-width:0}.history-card-host>ha-card{margin:0}",
+      ".history-loading{min-height:150px;padding:18px;border:1px solid var(--divider-color,#dfe3e8);border-radius:20px;background:var(--card-background-color,#fff);display:grid;place-items:center;color:var(--secondary-text-color,#68737d);font-size:13px}",
       ".flow{text-align:center;color:var(--primary-color,#03a9d9);font-size:12px;letter-spacing:.08em;padding:1px}",
       ".line-card{display:grid;grid-template-columns:1fr 145px;align-items:center;gap:10px}",
       ".line-focus{display:grid;gap:7px;text-align:center}",
@@ -701,8 +864,9 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".attention{color:var(--warning-color,#ed8b00);background:color-mix(in srgb,var(--warning-color,#ed8b00) 12%,#fff);border-color:color-mix(in srgb,var(--warning-color,#ed8b00) 32%,transparent)}",
       ".significant{color:#d96500;background:#fff1e5;border-color:#efad71}",
       ".emergency{color:var(--error-color,#d32f2f);background:color-mix(in srgb,var(--error-color,#d32f2f) 10%,#fff);border-color:color-mix(in srgb,var(--error-color,#d32f2f) 30%,transparent)}",
+      ".neutral{color:var(--primary-text-color,#17191c);background:color-mix(in srgb,var(--primary-color,#03a9d9) 6%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 18%,var(--divider-color,#dfe3e8))}",
       ".unavailable{color:var(--secondary-text-color,#68737d);background:color-mix(in srgb,var(--secondary-text-color,#68737d) 8%,#fff);border-color:var(--divider-color,#dfe3e8)}",
-      ".tabs{position:fixed;z-index:20;inset:auto 0 0 0;height:calc(70px + env(safe-area-inset-bottom));padding:6px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;background:var(--card-background-color,#fff);border-top:1px solid var(--divider-color,#dfe3e8);box-shadow:0 -5px 22px rgba(23,45,76,.08)}",
+      ".tabs{position:fixed;z-index:20;inset:auto 0 0 0;height:calc(70px + env(safe-area-inset-bottom));padding:6px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;background:var(--card-background-color,#fff);border-top:1px solid var(--divider-color,#dfe3e8);box-shadow:0 -5px 22px rgba(23,45,76,.08)}",
       ".tabs button{min-width:0;min-height:58px;padding:4px 2px;border:0;background:transparent;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--secondary-text-color,#68737d);font-size:12px;font-weight:700;line-height:1.1;overflow:hidden}",
       ".tabs button ha-icon{--mdc-icon-size:28px;width:28px;height:28px}",
       ".tabs button small{font-size:12px;line-height:1.1}",

@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.3.3",
+  "ui_version": "0.4.0",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -21,7 +21,7 @@
     "header_icon_px": 25,
     "header_refresh_on_card": true,
     "header_refresh_tone": "primary",
-    "bottom_tabs": ["overview", "before", "after", "line"],
+    "bottom_tabs": ["overview", "before", "after", "line", "history"],
     "bottom_tab_min_height_px": 58,
     "bottom_icon_px": 28,
     "bottom_full_width": true,
@@ -39,5 +39,11 @@
     "native_vertical_scroll_at_100_percent": true,
     "pan_only_when_scaled_content_overflows": true,
     "bounded_to_content_edges": true
+  },
+  "history": {
+    "provider": "home_assistant_statistics_graph",
+    "periods": ["24h", "7d", "30d", "12m"],
+    "metrics": ["voltage", "current", "power"],
+    "scope": ["before", "after", "non_interruptible_line"]
   }
 }
