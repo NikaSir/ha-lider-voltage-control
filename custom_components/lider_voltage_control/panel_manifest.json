@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.4.0",
+  "ui_version": "0.4.1",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -45,5 +45,13 @@
     "periods": ["24h", "7d", "30d", "12m"],
     "metrics": ["voltage", "current", "power"],
     "scope": ["before", "after", "non_interruptible_line"]
+  },
+  "connection_status": {
+    "entity": "binary_sensor.power_meter_online",
+    "states": ["local", "offline", "unknown"],
+    "telemetry_states": ["current", "stale", "unknown"],
+    "stale_after_poll_periods": 3,
+    "default_poll_period_seconds": 30,
+    "preserve_last_successful_snapshot": true
   }
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+- Replaced the single `Online`/`Offline` label with an independent two-level connection and telemetry-freshness badge.
+- Connection now reports only `Локально`, `Нет связи` or `Нет данных`; cloud and reserve modes are intentionally excluded.
+- Telemetry reports `Данные актуальны`, `Данные устарели` or `Нет данных` from the last successful state report.
+- The stale threshold is three reported polling periods, with a 30-second default period and 90-second default threshold.
+- Preserved the last successful numeric input snapshot when the current poll becomes unavailable.
+- Added the 10 px status lamp, required spacing, typography and Home Assistant semantic theme colors.
+
 ## 0.4.0
 
 - Rebuilt both input and output summaries as three equal phase columns.

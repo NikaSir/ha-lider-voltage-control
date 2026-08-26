@@ -27,6 +27,10 @@ const ENTITY_MAP = Object.freeze({
 const ZOOM_KEY = "nikas.lider.zoom.v1";
 const VIEW_KEY = "nikas.lider.view.v1";
 const HISTORY_PERIOD_KEY = "nikas.lider.history_period.v1";
+const TELEMETRY_SNAPSHOT_KEY = "nikas.lider.telemetry_snapshot.v1";
+const DEFAULT_POLL_PERIOD_MS = 30_000;
+const STALE_PERIOD_MULTIPLIER = 3;
+const STATUS_REFRESH_MS = 15_000;
 
 class LiderVoltageControlPanel extends HTMLElement {
   constructor() {
@@ -44,10 +48,13 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._diagnosticEntities = { before: [], after: { A: [], B: [], C: [] }, line: [] };
     this._historyPeriod = localStorage.getItem(HISTORY_PERIOD_KEY) || "24h";
     this._historyCards = [];
+    this._telemetrySnapshot = this._loadTelemetrySnapshot();
+    this._statusTimer = null;
   }
 
   set hass(value) {
     this._hass = value;
+    this._captureTelemetrySnapshot();
     if (!this._mounted) {
       this._mount();
     }
@@ -67,6 +74,12 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   connectedCallback() {
     if (!this._mounted) this._mount();
+    this._startStatusTimer();
+  }
+
+  disconnectedCallback() {
+    clearInterval(this._statusTimer);
+    this._statusTimer = null;
   }
 
   _loadZoom() {
@@ -80,6 +93,24 @@ class LiderVoltageControlPanel extends HTMLElement {
     } catch (_err) {
       return { scale: 1, x: 0, y: 0 };
     }
+  }
+
+  _loadTelemetrySnapshot() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(TELEMETRY_SNAPSHOT_KEY) || "{}");
+      return parsed && typeof parsed === "object"
+        ? { updatedAt: Number(parsed.updatedAt) || null, values: parsed.values || {} }
+        : { updatedAt: null, values: {} };
+    } catch (_err) {
+      return { updatedAt: null, values: {} };
+    }
+  }
+
+  _startStatusTimer() {
+    if (this._statusTimer) return;
+    this._statusTimer = setInterval(() => {
+      if (this._view === "overview" && this.isConnected) this._renderContent();
+    }, STATUS_REFRESH_MS);
   }
 
   async _resolveRegistryEntities() {
@@ -143,7 +174,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.0</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.1</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -234,7 +265,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<section class="installation" role="img" aria-label="Три стабилизатора LIDER PS7500W-15 на стойке с внешним пофазным байпасом">' +
         '<div class="scene-heading"><h1>Контроль электросети</h1>' +
           '<p>Вход → LIDER → домашняя сеть</p></div>' +
-        '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
+        this._connectionBadge() +
         '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.2" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
         this._scenePhase("A", "phase-a") +
         this._scenePhase("B", "phase-b") +
@@ -324,7 +355,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _measurementCard(label, entityId, policy = null, requiresInput = false) {
-    const state = entityId ? this._hass?.states?.[entityId] : null;
+    const state = this._displayState(entityId);
     const rawAvailable = Boolean(state) && !["unknown", "unavailable", "none", ""]
       .includes(String(state.state).toLowerCase());
     const available = rawAvailable && (!requiresInput || this._inputTelemetryState() === "ok");
@@ -512,7 +543,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _stateText(entityId) {
-    const state = this._hass?.states?.[entityId];
+    const state = this._displayState(entityId);
     if (!state || ["unknown", "unavailable", "none", ""].includes(String(state.state).toLowerCase())) {
       return 'Нет данных';
     }
@@ -545,7 +576,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _reading(entityId) {
-    const state = this._hass?.states?.[entityId];
+    const state = this._displayState(entityId);
     if (!state || ["unknown", "unavailable", "none", ""].includes(String(state.state).toLowerCase())) {
       return { available: false, value: null };
     }
@@ -583,18 +614,133 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _overallClass() {
-    return this._meterIsOnline() ? "normal" : "emergency";
+    return {
+      local: "normal",
+      offline: "emergency",
+      unknown: "unavailable",
+    }[this._connectionState()];
   }
 
   _overallLabel() {
-    return this._meterIsOnline() ? "Online" : "Offline";
+    return {
+      local: "Локально",
+      offline: "Нет связи",
+      unknown: "Нет данных",
+    }[this._connectionState()];
   }
 
-  _meterIsOnline() {
+  _connectionState() {
     const meter = this._binaryState(ENTITY_MAP.meterOnline);
-    if (meter === "on") return true;
-    if (meter === "off") return false;
-    return Object.values(ENTITY_MAP.before).some((entityId) => this._reading(entityId).available);
+    if (meter === "on") return "local";
+    if (meter === "off") return "offline";
+    return "unknown";
+  }
+
+  _connectionBadge() {
+    const freshness = this._telemetryFreshness();
+    return '<button class="overall ' + this._overallClass() + '" data-entity="' +
+      ENTITY_MAP.meterOnline + '" aria-label="Связь: ' + this._overallLabel() +
+      '. Телеметрия: ' + freshness.label + '">' +
+      '<span class="status-lamp" aria-hidden="true"></span>' +
+      '<span class="status-main">' + this._overallLabel() + '</span>' +
+      '<span class="status-sub ' + freshness.className + '">' + freshness.label + '</span>' +
+    '</button>';
+  }
+
+  _telemetryFreshness() {
+    const connection = this._connectionState();
+    const updatedAt = this._lastSuccessfulTelemetryAt();
+    if (connection === "unknown" || !updatedAt) {
+      return { key: "unknown", className: "freshness-unknown", label: "Нет данных" };
+    }
+    if (connection === "offline" || Date.now() - updatedAt > this._staleAfterMs()) {
+      return { key: "stale", className: "freshness-stale", label: "Данные устарели" };
+    }
+    return { key: "fresh", className: "freshness-current", label: "Данные актуальны" };
+  }
+
+  _staleAfterMs() {
+    const candidates = [ENTITY_MAP.meterOnline, ...Object.values(ENTITY_MAP.before)]
+      .map((entityId) => this._pollPeriodFromState(this._hass?.states?.[entityId]))
+      .filter(Number.isFinite);
+    const pollPeriod = candidates.length ? Math.min(...candidates) : DEFAULT_POLL_PERIOD_MS;
+    return pollPeriod * STALE_PERIOD_MULTIPLIER;
+  }
+
+  _pollPeriodFromState(state) {
+    if (!state?.attributes) return NaN;
+    for (const key of ["scan_interval", "poll_interval", "update_interval"]) {
+      const raw = state.attributes[key];
+      if (typeof raw === "number" && raw > 0) return raw * 1000;
+      const match = String(raw || "").match(/^(\d+(?:\.\d+)?)\s*(ms|s|sec|seconds?|min|minutes?)?$/i);
+      if (!match) continue;
+      const value = Number(match[1]);
+      const unit = (match[2] || "s").toLowerCase();
+      return value * (unit === "ms" ? 1 : unit.startsWith("min") ? 60_000 : 1000);
+    }
+    return NaN;
+  }
+
+  _telemetryEntityIds() {
+    return [...new Set([
+      ...Object.values(ENTITY_MAP.before),
+      ...Object.values(ENTITY_MAP.current),
+      ...Object.values(ENTITY_MAP.power),
+    ])];
+  }
+
+  _displayState(entityId) {
+    const live = this._hass?.states?.[entityId];
+    if (live && !["unknown", "unavailable", "none", ""]
+      .includes(String(live.state).toLowerCase())) return live;
+    const snapshot = this._telemetrySnapshot.values?.[entityId];
+    return snapshot ? {
+      state: snapshot.state,
+      attributes: { unit_of_measurement: snapshot.unit || "" },
+      last_reported: snapshot.reportedAt ? new Date(snapshot.reportedAt).toISOString() : null,
+    } : live;
+  }
+
+  _stateReportedAt(state) {
+    const timestamp = Date.parse(state?.last_reported || state?.last_updated || "");
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  _lastSuccessfulTelemetryAt() {
+    const reported = this._telemetryEntityIds()
+      .map((entityId) => this._hass?.states?.[entityId])
+      .filter((state) => state && !["unknown", "unavailable", "none", ""]
+        .includes(String(state.state).toLowerCase()))
+      .map((state) => this._stateReportedAt(state))
+      .filter(Number.isFinite);
+    return Math.max(this._telemetrySnapshot.updatedAt || 0, ...reported) || null;
+  }
+
+  _captureTelemetrySnapshot() {
+    if (this._connectionState() !== "local") return;
+    let changed = false;
+    let updatedAt = this._telemetrySnapshot.updatedAt || 0;
+    const values = { ...this._telemetrySnapshot.values };
+    for (const entityId of this._telemetryEntityIds()) {
+      const state = this._hass?.states?.[entityId];
+      if (!state || ["unknown", "unavailable", "none", ""]
+        .includes(String(state.state).toLowerCase())) continue;
+      const reportedAt = this._stateReportedAt(state);
+      if (!reportedAt) continue;
+      const nextValue = {
+        state: String(state.state),
+        unit: state.attributes?.unit_of_measurement || "",
+        reportedAt,
+      };
+      const previous = values[entityId];
+      values[entityId] = nextValue;
+      updatedAt = Math.max(updatedAt, reportedAt);
+      changed = changed || !previous || previous.state !== nextValue.state ||
+        previous.unit !== nextValue.unit || previous.reportedAt !== nextValue.reportedAt;
+    }
+    if (!changed) return;
+    this._telemetrySnapshot = { updatedAt, values };
+    localStorage.setItem(TELEMETRY_SNAPSHOT_KEY, JSON.stringify(this._telemetrySnapshot));
   }
 
   _groupSeverity(entities, policy) {
@@ -609,9 +755,9 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _inputTelemetryState() {
-    const meter = this._binaryState(ENTITY_MAP.meterOnline);
+    const connection = this._connectionState();
     const phaseLoss = this._binaryState(ENTITY_MAP.phaseLoss);
-    if (meter === null || phaseLoss === null || meter !== "on") return "unavailable";
+    if (connection === "unknown") return "unavailable";
     return phaseLoss === "on" ? "phase-loss" : "ok";
   }
 
@@ -809,8 +955,13 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".scene-heading{position:absolute;z-index:4;left:18px;top:16px;max-width:45%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
       ".scene-heading h1{font-size:22px;line-height:1.02;margin-top:3px}",
       ".scene-heading p{margin-top:3px;color:#4d555d;font-size:10px;line-height:1.2}",
-      ".overall{position:absolute;z-index:5;right:14px;top:16px;padding:8px 11px;border-radius:999px;display:flex;align-items:center;gap:7px;font-weight:750;font-size:12px;text-align:center;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.09)}",
-      ".overall:before{content:'';width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 18%,transparent),0 0 8px color-mix(in srgb,currentColor 58%,transparent)}",
+      ".overall{position:absolute;z-index:5;right:14px;top:16px;min-width:144px;padding:12px 14px;border:1px solid;border-radius:18px;display:grid;grid-template-columns:10px minmax(0,auto);grid-template-rows:auto auto;align-items:center;column-gap:11px;row-gap:2px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.09)}",
+      ".status-lamp{grid-column:1;grid-row:1;width:10px;height:10px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 18%,transparent),0 0 8px color-mix(in srgb,currentColor 58%,transparent)}",
+      ".status-main{grid-column:2;grid-row:1;font-size:15px;font-weight:700;line-height:1.15}",
+      ".status-sub{grid-column:2;grid-row:2;font-size:12px;font-weight:550;line-height:1.2}",
+      ".status-sub.freshness-current{color:var(--secondary-text-color,#68737d)}",
+      ".status-sub.freshness-stale{color:var(--warning-color,#ed8b00)}",
+      ".status-sub.freshness-unknown{color:var(--disabled-text-color,#9aa0a6)}",
       ".scene-phase{position:absolute;z-index:5;width:29%;display:grid;grid-template-columns:1fr;gap:5px;padding:8px;border:1px solid rgba(255,255,255,.76);border-radius:16px;background:rgba(255,255,255,.91);box-shadow:0 5px 16px rgba(40,48,56,.14);backdrop-filter:blur(9px)}",
       ".scene-phase.side-input{left:10px;width:31%}",
       ".scene-phase.side-output{right:10px}",
@@ -866,6 +1017,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".emergency{color:var(--error-color,#d32f2f);background:color-mix(in srgb,var(--error-color,#d32f2f) 10%,#fff);border-color:color-mix(in srgb,var(--error-color,#d32f2f) 30%,transparent)}",
       ".neutral{color:var(--primary-text-color,#17191c);background:color-mix(in srgb,var(--primary-color,#03a9d9) 6%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 18%,var(--divider-color,#dfe3e8))}",
       ".unavailable{color:var(--secondary-text-color,#68737d);background:color-mix(in srgb,var(--secondary-text-color,#68737d) 8%,#fff);border-color:var(--divider-color,#dfe3e8)}",
+      ".overall.unavailable{color:var(--disabled-text-color,#9aa0a6)}",
       ".tabs{position:fixed;z-index:20;inset:auto 0 0 0;height:calc(70px + env(safe-area-inset-bottom));padding:6px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;background:var(--card-background-color,#fff);border-top:1px solid var(--divider-color,#dfe3e8);box-shadow:0 -5px 22px rgba(23,45,76,.08)}",
       ".tabs button{min-width:0;min-height:58px;padding:4px 2px;border:0;background:transparent;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--secondary-text-color,#68737d);font-size:12px;font-weight:700;line-height:1.1;overflow:hidden}",
       ".tabs button ha-icon{--mdc-icon-size:28px;width:28px;height:28px}",
@@ -873,7 +1025,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".tabs button.active{color:var(--primary-color,#03a9d9);background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
       ".zoom-toast{position:fixed;z-index:40;left:50%;top:calc(78px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(30,34,38,.9);color:#fff;font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
-      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:540px}.installation-equipment{left:55%;height:81%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:32%}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.input-metrics{gap:3px}.scene-reading b,.scene-power b{font-size:11px}.installation-caption{left:12px;right:12px;bottom:11px}.installation-caption span{font-size:9px}.installation-caption strong{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{white-space:nowrap}}",
+      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:540px}.installation-equipment{left:55%;height:81%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:32%}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.input-metrics{gap:3px}.scene-reading b,.scene-power b{font-size:11px}.installation-caption{left:12px;right:12px;bottom:11px}.installation-caption span{font-size:9px}.installation-caption strong{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{min-width:140px;white-space:nowrap}}",
     ].join("");
   }
 }
