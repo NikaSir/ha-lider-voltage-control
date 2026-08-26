@@ -19,7 +19,7 @@
 | Typography | PASS | Meaningful copy is 12–25px. Compact scene annotations are raised to 12px by the final v1.6 override. |
 | Electrical thresholds | PASS | Incoming voltage uses the LIDER PS7500W-15 passport bands before stabilizers; confirmed downstream points use the separate project ГОСТ quality bands. |
 | Repository and integration identity | PASS | README uses the approved LIDER identity and packaged `custom_components/lider_voltage_control/brand/icon.png` is validated. |
-| Autonomous delivery and CI | PASS | One stable integration-owned module; contract, stable-DOM, brand and syntax checks are repository-owned. GitHub Releases are not used. |
+| Autonomous delivery and CI | PASS | One stable integration-owned module; contract, stable-DOM, brand and syntax checks are repository-owned. GitHub Releases and automatic release tags are not used. |
 | Real iPhone acceptance | GAP | Companion App validation remains required for safe area, long scroll, focal pinch, bounded pan/reset, more-info and absence of flashing during live updates. |
 
 The `GAP` is external field acceptance only; it is not represented as an automated PASS.
