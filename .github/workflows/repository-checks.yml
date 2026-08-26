@@ -43,7 +43,9 @@ jobs:
           PY
 
       - name: Validate JavaScript
-        run: node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
+        run: |
+          node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
+          node scripts/check-stable-dom.mjs
 
       - name: Verify panel contract
         run: |

@@ -3,9 +3,16 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.4.3
+  version: 0.4.4
 spec:
   read_only: true
+  rendering:
+    stable_shell_dom: true
+    shadow_root_inner_html: initial_mount_only
+    telemetry_updates: patch_existing_nodes
+    status_updates: category_change_only
+    preserve_on_update: [header, image, zoom_viewport, scroll, bottom_tab_bar]
+    structural_render_during_scroll: false
   equipment:
     three_phase_assembly: three LIDER PS7500W-15 modules
     phase_module: LIDER PS7500W-15
