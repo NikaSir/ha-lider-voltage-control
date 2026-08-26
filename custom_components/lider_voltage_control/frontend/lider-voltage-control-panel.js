@@ -144,6 +144,7 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
       '</section>' +
       '<section class="installation" role="img" aria-label="Трёхфазный комплект LIDER PS22W-30: три стабилизатора PS7500W-30 на стойке с внешним байпасом">' +
+        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v1.png?v=0.1.3" alt="" aria-hidden="true" loading="eager" decoding="async">' +
         '<div class="installation-caption"><span>LIDER PS22W-30</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
       '</section>' +
       this._summarySection("1. До стабилизаторов", ENTITY_MAP.before, "before") +
@@ -439,9 +440,10 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid rgba(152,199,235,.17);background:linear-gradient(145deg,rgba(24,50,73,.88),rgba(8,20,33,.94));border-radius:22px;box-shadow:0 14px 34px rgba(0,0,0,.22)}",
       ".hero{min-height:126px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px}",
       ".hero.compact{min-height:104px}",
-      ".installation{position:relative;min-height:390px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid rgba(152,199,235,.17);background:#d9d8d3 url('./assets/lider-room-v2.jpeg') center center/cover no-repeat;box-shadow:0 14px 34px rgba(0,0,0,.22)}",
-      ".installation:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 58%,rgba(4,10,16,.78) 100%);pointer-events:none}",
-      ".installation-caption{position:absolute;z-index:1;left:16px;right:16px;bottom:14px;display:flex;align-items:end;justify-content:space-between;gap:12px;text-shadow:0 2px 8px #000}",
+      ".installation{position:relative;min-height:390px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid rgba(152,199,235,.17);background:#d9d8d3 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.1.3') center center/cover no-repeat;box-shadow:0 14px 34px rgba(0,0,0,.22);isolation:isolate}",
+      ".installation-equipment{position:absolute;z-index:1;left:62%;bottom:2.5%;height:90%;width:auto;max-width:70%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.24));pointer-events:none;user-select:none}",
+      ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,transparent 64%,rgba(4,10,16,.72) 100%);pointer-events:none}",
+      ".installation-caption{position:absolute;z-index:3;left:16px;right:16px;bottom:14px;display:flex;align-items:end;justify-content:space-between;gap:12px;text-shadow:0 2px 8px #000}",
       ".installation-caption span{font-size:12px;letter-spacing:.14em;font-weight:750}",
       ".installation-caption strong{font-size:15px}",
       ".eyebrow{font-size:11px;letter-spacing:.16em;color:#8fb9d8;font-weight:750}",
@@ -476,7 +478,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".tabs button.active{color:#7cc8ff;background:rgba(61,157,224,.12)}",
       ".zoom-toast{position:fixed;z-index:40;left:50%;top:calc(72px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(8,15,24,.9);font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
-      "@media (max-width:420px){.canvas{padding:10px 10px 24px}.hero{padding:16px}.hero h1{font-size:22px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge,.overall{white-space:normal}}",
+      "@media (max-width:420px){.canvas{padding:10px 10px 24px}.hero{padding:16px}.hero h1{font-size:22px}.installation-equipment{left:63%;height:91%;max-width:72%}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge,.overall{white-space:normal}}",
     ].join("");
   }
 }

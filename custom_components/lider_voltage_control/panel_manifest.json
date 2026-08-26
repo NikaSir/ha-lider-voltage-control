@@ -6,12 +6,13 @@
   "icon": "mdi:shield-flash",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.1.2",
+  "ui_version": "0.1.3",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
     "mode": "single_stable_module",
-    "runtime_previous_version_imports": false
+    "runtime_previous_version_imports": false,
+    "hero_composition": "separate_room_and_equipment_layers"
   },
   "shell": {
     "header_left_action": "hass-toggle-menu",

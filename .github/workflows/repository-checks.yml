@@ -51,7 +51,8 @@ jobs:
           grep -F 'sensor.socket_zb_2_voltage' contracts/lider_voltage_control.yaml
           grep -F 'sensor.socket_zb_25_voltage' contracts/lider_voltage_control.yaml
           grep -F '"controls": "gesture_only"' custom_components/lider_voltage_control/panel_manifest.json
-          test -f custom_components/lider_voltage_control/frontend/assets/lider-room-v2.jpeg
+          test -f custom_components/lider_voltage_control/frontend/assets/lider-room-background-v1.webp
+          test -f custom_components/lider_voltage_control/frontend/assets/lider-rack-ps22w30-v1.png
 
       - name: Reject tracked credentials
         shell: bash
