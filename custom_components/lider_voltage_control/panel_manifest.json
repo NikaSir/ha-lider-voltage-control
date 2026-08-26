@@ -1,0 +1,32 @@
+{
+  "id": "lider",
+  "title": "LIDER",
+  "path": "/dashboard-lider",
+  "parent_route": "/dashboard-infrastructure/overview",
+  "icon": "mdi:shield-flash",
+  "owner": "lider_voltage_control",
+  "preferred_view": "overview",
+  "ui_version": "0.1.3",
+  "template_version": "1.0",
+  "module_url": "lider-voltage-control-panel.js",
+  "frontend_delivery": {
+    "mode": "single_stable_module",
+    "runtime_previous_version_imports": false,
+    "hero_composition": "separate_room_and_equipment_layers"
+  },
+  "shell": {
+    "header_left_action": "hass-toggle-menu",
+    "bottom_tabs": ["overview", "before", "after", "line"],
+    "safe_area_once": true
+  },
+  "zoom": {
+    "viewport_count": 1,
+    "min_percent": 75,
+    "max_percent": 200,
+    "default_percent": 100,
+    "controls": "gesture_only",
+    "reset": "two_finger_double_tap",
+    "snap_percent": [97, 103],
+    "persistent": true
+  }
+}

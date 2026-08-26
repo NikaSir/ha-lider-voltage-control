@@ -1,0 +1,15 @@
+{
+  "title": "LIDER Voltage Control",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Панель LIDER",
+        "description": "Добавить read-only панель контроля электросети и стабилизаторов LIDER."
+      }
+    },
+    "abort": {
+      "already_configured": "Панель LIDER уже добавлена."
+    }
+  }
+}
+
