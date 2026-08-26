@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.5
+
+- Aligned the fixed Header and Bottom Tab Bar contract with NikaS Specialized Panel UI Standard v1.6.
+- Raised meaningful interface copy to the shared 12–25 px range and aligned the requested two-level indicator to 16/13 px with a status-coloured tint and border.
+- Suppressed clicks after pinch, pan and two-finger taps so gestures cannot open accidental Home Assistant `more-info` dialogs.
+- Preserved the selected scale while resetting and persisting the origin when a tab changes.
+
 ## 0.4.4
 
 - Replaced telemetry-driven canvas reconstruction with point updates of existing DOM nodes.

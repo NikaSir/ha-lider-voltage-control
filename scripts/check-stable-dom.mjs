@@ -71,4 +71,22 @@ if (renderCalls !== 2) {
   throw new Error(`structural rendering must remain limited to initial mount and tab changes; found ${renderCalls} call sites`);
 }
 
+const shellMounts = [...source.matchAll(/shadowRoot\.innerHTML\s*=/g)].length;
+if (shellMounts !== 1) throw new Error(`shadowRoot must mount once; found ${shellMounts} assignments`);
+
+for (const required of [
+  "grid-template-columns:52px minmax(0,1fr) 52px",
+  "width:44px;min-width:44px;height:44px",
+  "--mdc-icon-size:25px",
+  "font-size:23px",
+  "font-size:14px",
+  "font-size:21px",
+  "font-size:13px",
+  "--mdc-icon-size:28px",
+  "font-size:12px;font-weight:700",
+  "this._suppressClicksUntil = Date.now() + 500",
+]) {
+  if (!source.includes(required)) throw new Error(`UI standard marker missing: ${required}`);
+}
+
 console.log("Stable DOM contract verified");

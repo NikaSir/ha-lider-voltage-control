@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.4.4",
+  "ui_version": "0.4.5",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -32,8 +32,16 @@
     "bottom_tabs": ["overview", "before", "after", "line", "history"],
     "bottom_tab_min_height_px": 58,
     "bottom_icon_px": 28,
+    "bottom_label_px": 12,
+    "bottom_label_weight": 700,
     "bottom_full_width": true,
     "safe_area_once": true
+  },
+  "typography": {
+    "meaningful_min_px": 12,
+    "meaningful_max_px": 25,
+    "status_main_px": 16,
+    "status_secondary_px": 13
   },
   "zoom": {
     "viewport_count": 1,
@@ -46,7 +54,8 @@
     "persistent": true,
     "native_vertical_scroll_at_100_percent": true,
     "pan_only_when_scaled_content_overflows": true,
-    "bounded_to_content_edges": true
+    "bounded_to_content_edges": true,
+    "suppress_clicks_after_gesture": true
   },
   "history": {
     "provider": "home_assistant_history_graph",
@@ -56,6 +65,8 @@
     "excluded_metrics": ["generation", "produced_energy", "export_energy", "reverse_energy"]
   },
   "connection_status": {
+    "enabled_by_repository_request": true,
+    "visual_reference": "LIDER",
     "entity": "binary_sensor.power_meter_online",
     "states": ["local", "offline", "unknown"],
     "telemetry_states": ["current", "stale", "unknown"],
