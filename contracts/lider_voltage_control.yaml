@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.1.3
+  version: 0.1.4
 spec:
   read_only: true
   equipment:
@@ -56,5 +56,5 @@ spec:
   artwork:
     composition: separate_layers
     room_background: frontend/assets/lider-room-background-v1.webp
-    equipment_overlay: frontend/assets/lider-rack-ps22w30-v1.png
+    equipment_overlay: frontend/assets/lider-rack-ps22w30-v2.webp
     equipment_alpha: required
