@@ -6,7 +6,7 @@
   "icon": "mdi:shield-flash",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.1.1",
+  "ui_version": "0.1.2",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {

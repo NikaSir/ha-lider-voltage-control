@@ -144,7 +144,7 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
       '</section>' +
       '<section class="installation" role="img" aria-label="Трёхфазный комплект LIDER PS22W-30: три стабилизатора PS7500W-30 на стойке с внешним байпасом">' +
-        '<div class="installation-caption"><span>LIDER PS22W-30</span><strong>3 × PS7500W-30 · байпас</strong></div>' +
+        '<div class="installation-caption"><span>LIDER PS22W-30</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
       '</section>' +
       this._summarySection("1. До стабилизаторов", ENTITY_MAP.before, "before") +
       '<div class="flow">↓ стабилизация LIDER ↓</div>' +
