@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.4.0
+  version: 0.4.1
 spec:
   read_only: true
   equipment:
@@ -68,6 +68,23 @@ spec:
     unavailable_is_healthy: false
     missing_entity_is_healthy: false
     frontend_must_not_invent_values: true
+  connection_status:
+    source: binary_sensor.power_meter_online
+    transport: local_only
+    command_capability: none
+    states:
+      "on": Локально
+      "off": Нет связи
+      unknown_or_unavailable: Нет данных
+    telemetry_freshness:
+      source_timestamp: last_reported
+      fallback_timestamp: last_updated
+      stale_after_poll_periods: 3
+      default_poll_period_seconds: 30
+      current: Данные актуальны
+      stale: Данные устарели
+      unknown: Нет данных
+      preserve_last_successful_snapshot: true
   history:
     provider: home_assistant_statistics_graph
     periods: [24h, 7d, 30d, 12m]
