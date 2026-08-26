@@ -48,8 +48,11 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._diagnosticEntities = { before: [], after: { A: [], B: [], C: [] }, line: [] };
     this._historyPeriod = localStorage.getItem(HISTORY_PERIOD_KEY) || "24h";
     this._historyCards = [];
+    this._historyMountToken = 0;
     this._telemetrySnapshot = this._loadTelemetrySnapshot();
     this._statusTimer = null;
+    this._renderedView = null;
+    this._statusCategoryKey = null;
   }
 
   set hass(value) {
@@ -64,7 +67,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     if (this._view === "history" && this._historyCards.length) {
       this._historyCards.forEach((card) => { card.hass = value; });
     } else {
-      this._renderContent();
+      this._updateLiveDom();
     }
   }
 
@@ -109,7 +112,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   _startStatusTimer() {
     if (this._statusTimer) return;
     this._statusTimer = setInterval(() => {
-      if (this._view === "overview" && this.isConnected) this._renderContent();
+      if (this._view === "overview" && this.isConnected) this._updateConnectionBadge();
     }, STATUS_REFRESH_MS);
   }
 
@@ -159,7 +162,8 @@ class LiderVoltageControlPanel extends HTMLElement {
     } finally {
       this._registryLoaded = true;
       this._registryLoading = false;
-      this._renderContent();
+      if (this._view === "history") this._mountHistoryCards();
+      else this._updateLiveDom();
     }
   }
 
@@ -174,7 +178,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.3</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.4</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -198,11 +202,11 @@ class LiderVoltageControlPanel extends HTMLElement {
       this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
     });
     this.shadowRoot.querySelector(".refresh").addEventListener("click", () => {
-      this._renderContent();
+      this._updateLiveDom();
     });
     this.shadowRoot.querySelector(".tabs").addEventListener("click", (event) => {
       const button = event.target.closest("button[data-view]");
-      if (!button) return;
+      if (!button || button.dataset.view === this._view) return;
       this._view = button.dataset.view;
       localStorage.setItem(VIEW_KEY, this._view);
       this._zoom.x = 0;
@@ -215,7 +219,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       if (periodButton) {
         this._historyPeriod = periodButton.dataset.historyPeriod;
         localStorage.setItem(HISTORY_PERIOD_KEY, this._historyPeriod);
-        this._renderContent();
+        this._updateHistoryPeriod();
         return;
       }
       const target = event.target.closest("[data-entity]");
@@ -241,14 +245,10 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _renderContent() {
     if (!this._canvas) return;
-    const renderers = {
-      overview: () => this._overview(),
-      before: () => this._detailGroup("До стабилизаторов", ENTITY_MAP.before, "before"),
-      after: () => this._detailGroup("После стабилизаторов", ENTITY_MAP.after, "quality"),
-      line: () => this._lineView(),
-      history: () => this._historyView(),
-    };
-    this._canvas.innerHTML = (renderers[this._view] || renderers.overview)();
+    this._historyMountToken += 1;
+    this._canvas.innerHTML = this._viewHtml();
+    this._renderedView = this._view;
+    this._statusCategoryKey = this._view === "overview" ? this._connectionCategoryKey() : null;
     this.shadowRoot.querySelectorAll(".tabs button").forEach((button) => {
       button.classList.toggle("active", button.dataset.view === this._view);
     });
@@ -258,6 +258,98 @@ class LiderVoltageControlPanel extends HTMLElement {
       this._historyCards = [];
     }
     requestAnimationFrame(() => this._applyTransform());
+  }
+
+  _viewHtml() {
+    const renderers = {
+      overview: () => this._overview(),
+      before: () => this._detailGroup("До стабилизаторов", ENTITY_MAP.before, "before"),
+      after: () => this._detailGroup("После стабилизаторов", ENTITY_MAP.after, "quality"),
+      line: () => this._lineView(),
+      history: () => this._historyView(),
+    };
+    return (renderers[this._view] || renderers.overview)();
+  }
+
+  _updateLiveDom() {
+    if (!this._canvas || this._renderedView !== this._view) return;
+    if (this._view === "history") {
+      this._historyCards.forEach((card) => { card.hass = this._hass; });
+      return;
+    }
+    const template = document.createElement("template");
+    template.innerHTML = this._viewHtml();
+    const current = this._canvas.firstElementChild;
+    const next = template.content.firstElementChild;
+    if (current && next) this._patchExistingTree(current, next);
+    this._updateConnectionBadge();
+  }
+
+  _patchExistingTree(current, next) {
+    if (!current || !next || current.nodeType !== next.nodeType) return;
+    if (current.nodeType === Node.TEXT_NODE) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      return;
+    }
+    if (current.nodeType !== Node.ELEMENT_NODE || current.localName !== next.localName) return;
+    if (current.matches?.(".overall")) return;
+    for (const name of ["class", "aria-label", "data-entity"]) {
+      const value = next.getAttribute(name);
+      if (value === null) {
+        if (current.hasAttribute(name)) current.removeAttribute(name);
+      } else if (current.getAttribute(name) !== value) {
+        current.setAttribute(name, value);
+      }
+    }
+    const currentChildren = [...current.childNodes];
+    const nextChildren = [...next.childNodes];
+    const count = Math.min(currentChildren.length, nextChildren.length);
+    for (let index = 0; index < count; index += 1) {
+      this._patchExistingTree(currentChildren[index], nextChildren[index]);
+    }
+  }
+
+  _connectionCategoryKey() {
+    const freshness = this._telemetryFreshness();
+    return this._connectionState() + ":" + freshness.key;
+  }
+
+  _updateConnectionBadge() {
+    if (this._view !== "overview" || !this._canvas) return;
+    const key = this._connectionCategoryKey();
+    if (key === this._statusCategoryKey) return;
+    const current = this._canvas.querySelector(".overall");
+    if (!current) return;
+    const template = document.createElement("template");
+    template.innerHTML = this._connectionBadge();
+    const next = template.content.firstElementChild;
+    current.className = next.className;
+    current.setAttribute("aria-label", next.getAttribute("aria-label"));
+    const main = current.querySelector(".status-main");
+    const nextMain = next.querySelector(".status-main");
+    const sub = current.querySelector(".status-sub");
+    const nextSub = next.querySelector(".status-sub");
+    if (main.textContent !== nextMain.textContent) main.textContent = nextMain.textContent;
+    if (sub.textContent !== nextSub.textContent) sub.textContent = nextSub.textContent;
+    if (sub.className !== nextSub.className) sub.className = nextSub.className;
+    this._statusCategoryKey = key;
+  }
+
+  _updateHistoryPeriod() {
+    if (this._view !== "history") return;
+    const labels = { "24h": "24 часа", "7d": "7 дней", "30d": "30 дней", "12m": "12 месяцев" };
+    this._canvas.querySelectorAll("[data-history-period]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.historyPeriod === this._historyPeriod);
+    });
+    const label = this._canvas.querySelector(".history-period-label");
+    if (label) label.textContent = labels[this._historyPeriod];
+    this._canvas.querySelectorAll("[data-history-card]").forEach((host) => {
+      const loading = document.createElement("div");
+      loading.className = "history-loading";
+      loading.textContent = "Загрузка истории…";
+      host.replaceChildren(loading);
+    });
+    this._mountHistoryCards();
   }
 
   _overview() {
@@ -394,7 +486,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     ];
     return '<div class="page history-page">' +
       '<section class="hero compact"><div class="hero-title"><h1>Статистика</h1></div>' +
-      '<span class="badge neutral">' + periods.find(([id]) => id === this._historyPeriod)[1] + '</span></section>' +
+      '<span class="badge neutral history-period-label">' + periods.find(([id]) => id === this._historyPeriod)[1] + '</span></section>' +
       '<section class="panel-card history-periods" aria-label="Период статистики">' +
         periods.map(([id, label]) => '<button data-history-period="' + id + '" class="' +
           (id === this._historyPeriod ? 'active' : '') + '">' + label + '</button>').join('') +
@@ -409,8 +501,8 @@ class LiderVoltageControlPanel extends HTMLElement {
         this._historyHost("after-current") +
         this._historyHost("after-power") +
       '</section>' +
-      (this._lineEntity() ? '<section class="panel-card history-group"><h2>Неотключаемая линия</h2>' +
-        this._historyHost("line-voltage") + '</section>' : '') +
+      '<section class="panel-card history-group"><h2>Неотключаемая линия</h2>' +
+        this._historyHost("line-voltage") + '</section>' +
       '<p class="note">Графики используют обычную историю Home Assistant и доступны в пределах срока хранения Recorder.</p>' +
     '</div>';
   }
@@ -422,7 +514,8 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   async _mountHistoryCards() {
-    if (this._view !== "history") return;
+    if (this._view !== "history" || !this._registryLoaded) return;
+    const mountToken = ++this._historyMountToken;
     const period = {
       "24h": { hours: 24 },
       "7d": { hours: 168 },
@@ -431,10 +524,11 @@ class LiderVoltageControlPanel extends HTMLElement {
     }[this._historyPeriod];
     try {
       const helpers = await window.loadCardHelpers();
-      if (this._view !== "history") return;
+      if (this._view !== "history" || mountToken !== this._historyMountToken) return;
       const configs = this._historyCardConfigs(period);
       this._historyCards = [];
       for (const [id, config] of Object.entries(configs)) {
+        if (this._view !== "history" || mountToken !== this._historyMountToken) return;
         const host = this._canvas.querySelector('[data-history-card="' + id + '"]');
         if (!host) continue;
         const card = helpers.createCardElement(config);
@@ -442,6 +536,9 @@ class LiderVoltageControlPanel extends HTMLElement {
         host.replaceChildren(card);
         this._historyCards.push(card);
       }
+      this._canvas.querySelectorAll(".history-loading").forEach((node) => {
+        node.textContent = "Нет данных";
+      });
     } catch (_err) {
       this._canvas.querySelectorAll(".history-loading").forEach((node) => {
         node.textContent = "История Home Assistant недоступна";

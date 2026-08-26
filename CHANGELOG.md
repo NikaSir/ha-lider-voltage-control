@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.4
+
+- Replaced telemetry-driven canvas reconstruction with point updates of existing DOM nodes.
+- Limited the connection/freshness badge update to actual category transitions.
+- Preserved the equipment image, zoom viewport, scroll position, Header and Bottom Tab Bar across every Home Assistant state update.
+- Removed structural rendering from the freshness timer and registry completion path.
+- Added the stable-DOM and anti-flicker requirements to the shared specialized-panel standard.
+
 ## 0.4.3
 
 - Switched the statistics tab from long-term statistics to ordinary Home Assistant recorder history, so input sensors without statistics metadata are displayed.

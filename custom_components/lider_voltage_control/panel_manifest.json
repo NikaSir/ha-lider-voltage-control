@@ -6,13 +6,21 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.4.3",
+  "ui_version": "0.4.4",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
     "mode": "single_stable_module",
     "runtime_previous_version_imports": false,
     "hero_composition": "separate_room_and_equipment_layers"
+  },
+  "rendering": {
+    "stable_shell_dom": true,
+    "shadow_root_inner_html": "initial_mount_only",
+    "telemetry_updates": "patch_existing_nodes",
+    "status_updates": "category_change_only",
+    "preserve_on_update": ["header", "image", "zoom_viewport", "scroll", "bottom_tab_bar"],
+    "structural_render_during_scroll": false
   },
   "shell": {
     "header_left_action": "hass-toggle-menu",
