@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Removed the redundant `ЭЛЕКТРОСЕТЬ` eyebrow from the overview scene.
+- Kept `Стойка 9-36 · пофазный байпас` on one line.
+- Added a green/red status lamp to the `Online`/`Offline` indicator.
+
 ## 0.3.1
 
 - Shifted the equipment layer slightly right to clear the phase cards.
