@@ -26,4 +26,5 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-
+          # GitHub Topics are repository metadata and cannot be supplied by this branch.
+          ignore: topics
