@@ -51,6 +51,10 @@ jobs:
           grep -F 'sensor.socket_zb_2_voltage' contracts/lider_voltage_control.yaml
           grep -F 'W0035313411160_input_voltage' contracts/lider_voltage_control.yaml
           grep -F '"controls": "gesture_only"' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F 'mdi:transmission-tower' custom_components/lider_voltage_control/panel.py
+          grep -F '"header_button_px": 44' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"bottom_icon_px": 28' custom_components/lider_voltage_control/panel_manifest.json
+          test -f custom_components/lider_voltage_control/brand/icon.png
           test -f custom_components/lider_voltage_control/frontend/assets/lider-room-background-v1.webp
           test -f custom_components/lider_voltage_control/frontend/assets/lider-rack-ps22w30-v2.webp
 
