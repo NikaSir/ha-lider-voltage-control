@@ -3,12 +3,12 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.2.1
+  version: 0.2.2
 spec:
   read_only: true
   equipment:
-    three_phase_assembly: LIDER PS22W-30
-    phase_module: LIDER PS7500W-30
+    three_phase_assembly: three LIDER PS7500W-15 modules
+    phase_module: LIDER PS7500W-15
     module_count: 3
     rack: LIDER 9-36
     arrangement: vertically_stacked_on_communication_rack

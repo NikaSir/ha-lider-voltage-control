@@ -131,7 +131,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant">☰</button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.2.1</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.2.2</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить">↻</button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -204,15 +204,15 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _overview() {
     return '<div class="page">' +
-      '<section class="installation" role="img" aria-label="Трёхфазный комплект LIDER PS22W-30: три стабилизатора PS7500W-30 на стойке с внешним байпасом">' +
-        '<div class="scene-heading"><span class="eyebrow">ЭЛЕКТРОСЕТЬ</span><h1>Контроль стабилизации</h1>' +
+      '<section class="installation" role="img" aria-label="Три стабилизатора LIDER PS7500W-15 на стойке с внешним пофазным байпасом">' +
+        '<div class="scene-heading"><span class="eyebrow">ЭЛЕКТРОСЕТЬ</span><h1>Контроль электросети</h1>' +
           '<p>Вход → LIDER → домашняя сеть</p></div>' +
         '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
-        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.2.1" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
+        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.2.2" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
         this._scenePhase("A", "phase-a") +
         this._scenePhase("B", "phase-b") +
         this._scenePhase("C", "phase-c") +
-        '<div class="installation-caption"><span>LIDER PS22W-30</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
+        '<div class="installation-caption"><span>LIDER PS7500W-15 · 3 шт.</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
       '</section>' +
       this._lineCard() +
       '<p class="note">Нажатие на напряжение открывает стандартную историю Home Assistant.</p>' +
@@ -412,16 +412,18 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _overallClass() {
-    const groups = [
-      this._beforeSeverity(ENTITY_MAP.before),
-      this._groupSeverity(ENTITY_MAP.after, "quality"),
-      this._entitySeverity(this._lineEntity(), "quality"),
-    ];
-    return this._worst(groups);
+    return this._meterIsOnline() ? "normal" : "emergency";
   }
 
   _overallLabel() {
-    return this._severityLabel(this._overallClass());
+    return this._meterIsOnline() ? "Online" : "Offline";
+  }
+
+  _meterIsOnline() {
+    const meter = this._binaryState(ENTITY_MAP.meterOnline);
+    if (meter === "on") return true;
+    if (meter === "off") return false;
+    return Object.values(ENTITY_MAP.before).some((entityId) => this._reading(entityId).available);
   }
 
   _groupSeverity(entities, policy) {
@@ -589,7 +591,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:126px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px}",
       ".hero.compact{min-height:104px}",
-      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.2.1') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
+      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.2.2') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
       ".installation-equipment{position:absolute;z-index:1;left:67%;bottom:3%;height:82%;width:auto;max-width:68%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
       ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
       ".scene-heading{position:absolute;z-index:4;left:18px;top:18px;max-width:62%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
