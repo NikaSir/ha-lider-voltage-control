@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3
+
+- Switched the statistics tab from long-term statistics to ordinary Home Assistant recorder history, so input sensors without statistics metadata are displayed.
+- Grouped all voltage, current and power charts into `До стабилизаторов` and `После стабилизаторов` sections.
+- Kept the non-interruptible line as a separate final history section.
+- Retained all four periods; their availability now follows the configured Recorder retention.
+
 ## 0.4.2
 
 - Extended the overview installation scene into the space previously occupied by the explanatory note.

@@ -174,7 +174,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.2</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.3</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -399,30 +399,35 @@ class LiderVoltageControlPanel extends HTMLElement {
         periods.map(([id, label]) => '<button data-history-period="' + id + '" class="' +
           (id === this._historyPeriod ? 'active' : '') + '">' + label + '</button>').join('') +
       '</section>' +
-      this._historyHost("before-voltage") +
-      this._historyHost("after-voltage") +
-      this._historyHost("before-current") +
-      this._historyHost("after-current") +
-      this._historyHost("before-power") +
-      this._historyHost("after-power") +
-      this._historyHost("line-voltage") +
-      '<p class="note">Графики построены штатной статистикой Home Assistant. Нажатие на легенду управляет отображением ряда.</p>' +
+      '<section class="panel-card history-group"><h2>До стабилизаторов</h2>' +
+        this._historyHost("before-voltage") +
+        this._historyHost("before-current") +
+        this._historyHost("before-power") +
+      '</section>' +
+      '<section class="panel-card history-group"><h2>После стабилизаторов</h2>' +
+        this._historyHost("after-voltage") +
+        this._historyHost("after-current") +
+        this._historyHost("after-power") +
+      '</section>' +
+      (this._lineEntity() ? '<section class="panel-card history-group"><h2>Неотключаемая линия</h2>' +
+        this._historyHost("line-voltage") + '</section>' : '') +
+      '<p class="note">Графики используют обычную историю Home Assistant и доступны в пределах срока хранения Recorder.</p>' +
     '</div>';
   }
 
   _historyHost(id) {
     return '<section class="history-card-host" data-history-card="' + id + '">' +
-      '<div class="history-loading">Загрузка статистики…</div>' +
+      '<div class="history-loading">Загрузка истории…</div>' +
     '</section>';
   }
 
   async _mountHistoryCards() {
     if (this._view !== "history") return;
     const period = {
-      "24h": { days: 1, bucket: "5minute" },
-      "7d": { days: 7, bucket: "hour" },
-      "30d": { days: 30, bucket: "day" },
-      "12m": { days: 365, bucket: "month" },
+      "24h": { hours: 24 },
+      "7d": { hours: 168 },
+      "30d": { hours: 720 },
+      "12m": { hours: 8760 },
     }[this._historyPeriod];
     try {
       const helpers = await window.loadCardHelpers();
@@ -439,7 +444,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       }
     } catch (_err) {
       this._canvas.querySelectorAll(".history-loading").forEach((node) => {
-        node.textContent = "Статистика Home Assistant недоступна";
+        node.textContent = "История Home Assistant недоступна";
       });
     }
   }
@@ -452,30 +457,25 @@ class LiderVoltageControlPanel extends HTMLElement {
     const afterRelated = (kind) => Object.fromEntries(
       phases.map((phase) => [phase, this._relatedAfterEntity(phase, kind)])
     );
-    const graph = (title, entities, statTypes = ["mean", "max"]) => ({
-      type: "statistics-graph",
+    const graph = (title, entities) => ({
+      type: "history-graph",
       title,
-      chart_type: "line",
       entities,
-      days_to_show: period.days,
-      period: period.bucket,
-      stat_types: statTypes,
-      hide_legend: false,
-      fit_y_data: true,
+      hours_to_show: period.hours,
     });
     const configs = {
-      "before-voltage": graph("Вход · напряжение", entityList(ENTITY_MAP.before, "Фаза"), ["min", "mean", "max"]),
-      "after-voltage": graph("Выход · напряжение", entityList(ENTITY_MAP.after, "Фаза"), ["min", "mean", "max"]),
-      "before-current": graph("Вход · ток", entityList(ENTITY_MAP.current, "Фаза")),
-      "after-current": graph("Выход · ток", entityList(afterRelated("current"), "Фаза")),
-      "before-power": graph("Вход · мощность", entityList(ENTITY_MAP.power, "Фаза")),
-      "after-power": graph("Выход · мощность", entityList(afterRelated("power"), "Фаза")),
+      "before-voltage": graph("Напряжение", entityList(ENTITY_MAP.before, "Фаза")),
+      "before-current": graph("Ток", entityList(ENTITY_MAP.current, "Фаза")),
+      "before-power": graph("Мощность", entityList(ENTITY_MAP.power, "Фаза")),
+      "after-voltage": graph("Напряжение", entityList(ENTITY_MAP.after, "Фаза")),
+      "after-current": graph("Ток", entityList(afterRelated("current"), "Фаза")),
+      "after-power": graph("Мощность", entityList(afterRelated("power"), "Фаза")),
     };
     if (this._lineEntity()) {
-      configs["line-voltage"] = graph("Неотключаемая линия · напряжение", [{
+      configs["line-voltage"] = graph("Напряжение", [{
         entity: this._lineEntity(),
         name: "UPS Котёл",
-      }], ["min", "mean", "max"]);
+      }]);
     }
     return configs;
   }
@@ -1012,6 +1012,8 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".history-periods button{min-width:0;min-height:42px;padding:6px 4px;border:1px solid var(--divider-color,#dfe3e8);border-radius:13px;background:transparent;color:var(--secondary-text-color,#68737d);font:inherit;font-size:11px;font-weight:700;line-height:1.15}",
       ".history-periods button.active{color:var(--primary-color,#03a9d9);border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 32%,var(--divider-color,#dfe3e8));background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
       ".history-card-host{min-width:0}.history-card-host>ha-card{margin:0}",
+      ".history-group{display:grid;gap:8px;padding:11px}.history-group>h2{padding:2px 3px 1px;font-size:18px}",
+      ".history-group .history-card-host>ha-card{box-shadow:none;border:1px solid var(--divider-color,#dfe3e8);border-radius:15px;overflow:hidden}",
       ".history-loading{min-height:150px;padding:18px;border:1px solid var(--divider-color,#dfe3e8);border-radius:20px;background:var(--card-background-color,#fff);display:grid;place-items:center;color:var(--secondary-text-color,#68737d);font-size:13px}",
       ".flow{text-align:center;color:var(--primary-color,#03a9d9);font-size:12px;letter-spacing:.08em;padding:1px}",
       ".line-card{display:grid;grid-template-columns:1fr 145px;align-items:center;gap:10px}",
