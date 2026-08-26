@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.4.2
+  version: 0.4.3
 spec:
   read_only: true
   equipment:
@@ -86,15 +86,15 @@ spec:
       unknown: Нет данных
       preserve_last_successful_snapshot: true
   history:
-    provider: home_assistant_statistics_graph
+    provider: home_assistant_history_graph
     periods: [24h, 7d, 30d, 12m]
     metrics: [voltage, current, power]
     excluded_metrics: [generation, produced_energy, export_energy, reverse_energy]
-    aggregation:
-      24h: 5minute
-      7d: hour
-      30d: day
-      12m: month
+    hours_to_show:
+      24h: 24
+      7d: 168
+      30d: 720
+      12m: 8760
   artwork:
     composition: separate_layers
     room_background: frontend/assets/lider-room-background-v1.webp

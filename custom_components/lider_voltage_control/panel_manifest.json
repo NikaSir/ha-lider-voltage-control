@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.4.2",
+  "ui_version": "0.4.3",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -41,10 +41,10 @@
     "bounded_to_content_edges": true
   },
   "history": {
-    "provider": "home_assistant_statistics_graph",
+    "provider": "home_assistant_history_graph",
     "periods": ["24h", "7d", "30d", "12m"],
     "metrics": ["voltage", "current", "power"],
-    "scope": ["before", "after", "non_interruptible_line"],
+    "scope": ["before_stabilizers", "after_stabilizers", "non_interruptible_line"],
     "excluded_metrics": ["generation", "produced_energy", "export_energy", "reverse_energy"]
   },
   "connection_status": {
