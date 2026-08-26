@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.1.4
+  version: 0.2.0
 spec:
   read_only: true
   equipment:
