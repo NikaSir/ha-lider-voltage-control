@@ -131,17 +131,17 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant">☰</button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.2.3</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.2.4</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить">↻</button>' +
         '</header>' +
         '<main class="viewport">' +
           '<section class="canvas"></section>' +
         '</main>' +
         '<nav class="tabs">' +
-          this._tabButton("overview", "⌂", "Обзор") +
-          this._tabButton("before", "⇥", "До LIDER") +
-          this._tabButton("after", "⇤", "После") +
-          this._tabButton("line", "ϟ", "Линия") +
+          this._tabButton("overview", "mdi:home-outline", "Обзор") +
+          this._tabButton("before", "mdi:arrow-right-bold", "До LIDER") +
+          this._tabButton("after", "mdi:arrow-left-bold", "После") +
+          this._tabButton("line", "mdi:lightning-bolt-outline", "Линия") +
         '</nav>' +
         '<div class="zoom-toast" aria-live="polite">Масштаб 100%</div>' +
       '</div>';
@@ -163,6 +163,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       localStorage.setItem(VIEW_KEY, this._view);
       this._zoom.x = 0;
       this._zoom.y = 0;
+      this._viewport.scrollTo({ left: 0, top: 0 });
       this._renderContent();
     });
     this._canvas.addEventListener("click", (event) => {
@@ -184,7 +185,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _tabButton(view, icon, label) {
-    return '<button data-view="' + view + '"><span>' + icon + '</span><small>' + label + '</small></button>';
+    return '<button data-view="' + view + '"><ha-icon icon="' + icon + '"></ha-icon><small>' + label + '</small></button>';
   }
 
   _renderContent() {
@@ -208,7 +209,7 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<div class="scene-heading"><span class="eyebrow">ЭЛЕКТРОСЕТЬ</span><h1>Контроль электросети</h1>' +
           '<p>Вход → LIDER → домашняя сеть</p></div>' +
         '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
-        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.2.3" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
+        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.2.4" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
         this._scenePhase("A", "phase-a") +
         this._scenePhase("B", "phase-b") +
         this._scenePhase("C", "phase-c") +
@@ -464,9 +465,14 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _touchStart(event) {
-    event.preventDefault();
     const touches = event.touches;
     if (touches.length === 2) {
+      event.preventDefault();
+      if (this._zoom.scale <= 1.03) {
+        this._zoom.x = 0;
+        this._zoom.y = -this._viewport.scrollTop;
+        this._viewport.scrollTo({ left: 0, top: 0 });
+      }
       const center = this._center(touches);
       this._gesture = {
         kind: "pinch",
@@ -477,7 +483,7 @@ class LiderVoltageControlPanel extends HTMLElement {
         moved: false,
         started: performance.now(),
       };
-    } else if (touches.length === 1) {
+    } else if (touches.length === 1 && this._zoom.scale > 1.03 && this._canPan()) {
       this._gesture = {
         kind: "pan",
         startX: touches[0].clientX,
@@ -486,13 +492,15 @@ class LiderVoltageControlPanel extends HTMLElement {
         y: this._zoom.y,
         moved: false,
       };
+    } else {
+      this._gesture = null;
     }
   }
 
   _touchMove(event) {
-    event.preventDefault();
     if (!this._gesture) return;
     if (event.touches.length === 2 && this._gesture.kind === "pinch") {
+      event.preventDefault();
       const center = this._center(event.touches);
       const ratio = this._distance(event.touches) / Math.max(this._gesture.distance, 1);
       const scale = this._clamp(this._gesture.scale * ratio, 0.75, 2);
@@ -502,6 +510,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       this._gesture.moved = Math.abs(ratio - 1) > 0.02;
       this._applyTransform();
     } else if (event.touches.length === 1 && this._gesture.kind === "pan") {
+      event.preventDefault();
       const dx = event.touches[0].clientX - this._gesture.startX;
       const dy = event.touches[0].clientY - this._gesture.startY;
       this._zoom.x = this._gesture.x + dx;
@@ -512,7 +521,6 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _touchEnd(event) {
-    event.preventDefault();
     const gesture = this._gesture;
     if (!gesture) return;
     if (gesture.kind === "pinch") {
@@ -537,6 +545,7 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _resetZoom() {
     this._zoom = { scale: 1, x: 0, y: 0 };
+    this._viewport?.scrollTo({ left: 0, top: 0, behavior: "smooth" });
     this._applyTransform();
     this._saveZoom();
     this._toast.classList.add("show");
@@ -550,8 +559,37 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _applyTransform() {
     if (!this._canvas) return;
+    const scale = this._zoom.scale;
+    const viewportWidth = Math.max(1, this._viewport.clientWidth);
+    const viewportHeight = Math.max(1, this._viewport.clientHeight);
+    const contentWidth = Math.max(1, this._canvas.offsetWidth);
+    const contentHeight = Math.max(1, this._canvas.scrollHeight);
+    const scaledWidth = contentWidth * scale;
+    const scaledHeight = contentHeight * scale;
+
+    if (Math.abs(scale - 1) < 0.001) {
+      this._zoom.scale = 1;
+      this._zoom.x = 0;
+      this._zoom.y = 0;
+    } else {
+      this._zoom.x = scaledWidth <= viewportWidth
+        ? (viewportWidth - scaledWidth) / 2
+        : Math.min(0, Math.max(viewportWidth - scaledWidth, this._zoom.x));
+      this._zoom.y = scaledHeight <= viewportHeight
+        ? 0
+        : Math.min(0, Math.max(viewportHeight - scaledHeight, this._zoom.y));
+    }
+
+    const zoomed = this._zoom.scale > 1.03;
+    this._viewport.classList.toggle("zoomed", zoomed);
     this._canvas.style.transform =
       "translate3d(" + this._zoom.x + "px," + this._zoom.y + "px,0) scale(" + this._zoom.scale + ")";
+  }
+
+  _canPan() {
+    if (!this._viewport || !this._canvas || this._zoom.scale <= 1.03) return false;
+    return this._canvas.offsetWidth * this._zoom.scale > this._viewport.clientWidth + 1 ||
+      this._canvas.scrollHeight * this._zoom.scale > this._viewport.clientHeight + 1;
   }
 
   _center(touches) {
@@ -585,13 +623,14 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".title small{font-size:10px;font-weight:500;letter-spacing:.02em;color:var(--secondary-text-color,#68737d)}",
       ".shell-button{width:48px;height:48px;margin:auto;border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);font-size:27px;border-radius:15px;box-shadow:var(--ha-card-box-shadow,0 2px 7px rgba(0,0,0,.09))}",
       ".shell-button:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 10%,var(--card-background-color,#fff));color:var(--primary-color,#03a9d9)}",
-      ".viewport{position:fixed;inset:calc(64px + env(safe-area-inset-top)) 0 calc(70px + env(safe-area-inset-bottom)) 0;overflow:hidden;touch-action:none}",
+      ".viewport{position:fixed;inset:calc(64px + env(safe-area-inset-top)) 0 calc(70px + env(safe-area-inset-bottom)) 0;overflow-x:hidden;overflow-y:auto;overscroll-behavior-x:none;touch-action:pan-y;-webkit-overflow-scrolling:touch}",
+      ".viewport.zoomed{overflow:hidden;overscroll-behavior:none;touch-action:none}",
       ".canvas{width:100%;min-height:100%;transform-origin:0 0;will-change:transform;padding:14px 14px 28px}",
       ".page{width:min(100%,760px);margin:0 auto;display:grid;gap:12px}",
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:126px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px}",
       ".hero.compact{min-height:104px}",
-      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.2.3') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
+      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.2.4') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
       ".installation-equipment{position:absolute;z-index:1;left:67%;bottom:3%;height:82%;width:auto;max-width:68%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
       ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
       ".scene-heading{position:absolute;z-index:4;left:18px;top:18px;max-width:62%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
@@ -639,8 +678,8 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".unavailable{color:var(--secondary-text-color,#68737d);background:color-mix(in srgb,var(--secondary-text-color,#68737d) 8%,#fff);border-color:var(--divider-color,#dfe3e8)}",
       ".tabs{position:fixed;z-index:20;inset:auto 0 0 0;height:calc(70px + env(safe-area-inset-bottom));padding:4px 7px env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(4,1fr);background:color-mix(in srgb,var(--primary-background-color,#f5f6f8) 95%,transparent);border-top:1px solid var(--divider-color,#dfe3e8);backdrop-filter:blur(18px)}",
       ".tabs button{border:0;background:transparent;border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--secondary-text-color,#68737d);min-height:58px}",
-      ".tabs button span{font-size:22px;line-height:1}",
-      ".tabs button small{font-size:10px}",
+      ".tabs button ha-icon{--mdc-icon-size:28px;width:28px;height:28px}",
+      ".tabs button small{font-size:12px;line-height:1.1}",
       ".tabs button.active{color:var(--primary-color,#03a9d9);background:color-mix(in srgb,var(--primary-color,#03a9d9) 12%,transparent)}",
       ".zoom-toast{position:fixed;z-index:40;left:50%;top:calc(78px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(30,34,38,.9);color:#fff;font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
