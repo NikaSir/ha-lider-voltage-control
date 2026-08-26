@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2
+
+- Extended the overview installation scene into the space previously occupied by the explanatory note.
+- Removed the redundant Home Assistant history hint below the non-interruptible line.
+- Lowered the equipment layer to create clear space below the two-level connection badge.
+- Excluded generation, produced, export and reverse-energy entities from history and dynamic diagnostics.
+
 ## 0.4.1
 
 - Replaced the single `Online`/`Offline` label with an independent two-level connection and telemetry-freshness badge.

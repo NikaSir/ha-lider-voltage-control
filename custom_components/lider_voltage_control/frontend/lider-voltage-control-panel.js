@@ -174,7 +174,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.1</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.4.2</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -273,7 +273,6 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<div class="installation-caption"><span>LIDER PS7500W-15 · 3 шт.</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
       '</section>' +
       this._lineCard() +
-      '<p class="note">Нажатие на напряжение открывает стандартную историю Home Assistant.</p>' +
     '</div>';
   }
 
@@ -378,7 +377,9 @@ class LiderVoltageControlPanel extends HTMLElement {
     if (this._hass?.states?.[exact]) return exact;
     const namePattern = kind === "current" ? /ток|current/i : /мощност|power/i;
     return (this._diagnosticEntities.after[phase] || []).find((entityId) => {
-      if (entityId === voltageEntity || /energy|энерги/i.test(entityId)) return false;
+      if (entityId === voltageEntity || /energy|энерги/i.test(entityId) || this._isGenerationEntity(entityId)) {
+        return false;
+      }
       const friendlyName = this._hass?.states?.[entityId]?.attributes?.friendly_name || "";
       return namePattern.test(entityId) || namePattern.test(friendlyName);
     }) || exact;
@@ -445,10 +446,9 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _historyCardConfigs(period) {
     const phases = ["A", "B", "C"];
-    const entityList = (map, prefix) => phases.map((phase) => ({
-      entity: map[phase],
-      name: prefix + " " + phase,
-    }));
+    const entityList = (map, prefix) => phases
+      .filter((phase) => !this._isGenerationEntity(map[phase]))
+      .map((phase) => ({ entity: map[phase], name: prefix + " " + phase }));
     const afterRelated = (kind) => Object.fromEntries(
       phases.map((phase) => [phase, this._relatedAfterEntity(phase, kind)])
     );
@@ -525,7 +525,8 @@ class LiderVoltageControlPanel extends HTMLElement {
   _diagnosticSection(title, entityIds, excluded = []) {
     const excludedSet = new Set(excluded.filter(Boolean));
     const entities = [...new Set(entityIds || [])]
-      .filter((entityId) => !excludedSet.has(entityId) && this._hass?.states?.[entityId]);
+      .filter((entityId) => !excludedSet.has(entityId) && !this._isGenerationEntity(entityId) &&
+        this._hass?.states?.[entityId]);
     if (!entities.length) return '';
     return '<section class="panel-card diagnostic-section">' +
       '<div class="section-head"><h2>' + title + '</h2></div>' +
@@ -540,6 +541,13 @@ class LiderVoltageControlPanel extends HTMLElement {
     return '<button class="diagnostic-metric" data-entity="' + entityId + '">' +
       '<span>' + label + '</span><strong>' + this._stateText(entityId) + '</strong>' +
     '</button>';
+  }
+
+  _isGenerationEntity(entityId) {
+    if (!entityId) return false;
+    const friendlyName = this._hass?.states?.[entityId]?.attributes?.friendly_name || "";
+    return /produced|production|generated|generation|export|reverse|returned|feed.?in|обратн|произвед|генерац|выработ|отдач/i
+      .test(entityId + " " + friendlyName);
   }
 
   _stateText(entityId) {
@@ -949,8 +957,8 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:110px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}",
       ".hero.compact{min-height:80px;padding:12px 16px}",
-      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.2') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
-      ".installation-equipment{position:absolute;z-index:1;left:54%;bottom:3%;height:82%;width:auto;max-width:60%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
+      ".installation{position:relative;min-height:576px;aspect-ratio:.70;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.2') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
+      ".installation-equipment{position:absolute;z-index:1;left:54%;bottom:1%;height:79%;width:auto;max-width:60%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
       ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
       ".scene-heading{position:absolute;z-index:4;left:18px;top:16px;max-width:45%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
       ".scene-heading h1{font-size:22px;line-height:1.02;margin-top:3px}",
@@ -1025,7 +1033,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".tabs button.active{color:var(--primary-color,#03a9d9);background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
       ".zoom-toast{position:fixed;z-index:40;left:50%;top:calc(78px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(30,34,38,.9);color:#fff;font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
-      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:540px}.installation-equipment{left:55%;height:81%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:32%}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.input-metrics{gap:3px}.scene-reading b,.scene-power b{font-size:11px}.installation-caption{left:12px;right:12px;bottom:11px}.installation-caption span{font-size:9px}.installation-caption strong{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{min-width:140px;white-space:nowrap}}",
+      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:600px}.installation-equipment{left:55%;bottom:1%;height:79%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:32%}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.input-metrics{gap:3px}.scene-reading b,.scene-power b{font-size:11px}.installation-caption{left:12px;right:12px;bottom:11px}.installation-caption span{font-size:9px}.installation-caption strong{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{min-width:140px;white-space:nowrap}}",
     ].join("");
   }
 }
