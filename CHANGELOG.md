@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- Shifted the equipment layer slightly right to clear the phase cards.
+- Placed phase power left of input voltage in one compact metric row.
+- Increased vertical separation between the three input cards.
+- Compressed the scene heading and moved the equipment caption away from the rack.
+
 ## 0.3.0
 
 - Header and Bottom Tab Bar aligned with the shared Stark SolarPower shell.
