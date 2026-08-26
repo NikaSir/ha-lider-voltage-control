@@ -1,0 +1,65 @@
+name: Repository checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate JSON and Python
+        run: |
+          python - <<'PY'
+          import ast
+          import json
+          from pathlib import Path
+
+          for path in Path('.').rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+              print(f'OK {path}')
+          for path in Path('custom_components').rglob('*.py'):
+              ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+              print(f'OK {path}')
+          PY
+
+      - name: Validate JavaScript
+        run: node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
+
+      - name: Verify panel contract
+        run: |
+          grep -F 'sensor.power_monitor_voltage_a' contracts/lider_voltage_control.yaml
+          grep -F 'sensor.socket_zb_2_voltage' contracts/lider_voltage_control.yaml
+          grep -F 'sensor.socket_zb_25_voltage' contracts/lider_voltage_control.yaml
+          grep -F '"controls": "gesture_only"' custom_components/lider_voltage_control/panel_manifest.json
+          test -f custom_components/lider_voltage_control/frontend/assets/lider-room-v1.png
+
+      - name: Reject tracked credentials
+        shell: bash
+        run: |
+          forbidden="$(git ls-files | grep -E '(^|/)(secrets\.yaml|\.env($|\.)|.*\.(pem|key|p12)$)' | grep -v -E '(^|/)\.env\.example$' || true)"
+          if [ -n "$forbidden" ]; then
+            echo 'Forbidden credential/key-like files are tracked:'
+            echo "$forbidden"
+            exit 1
+          fi
+
