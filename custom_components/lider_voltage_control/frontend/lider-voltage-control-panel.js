@@ -143,8 +143,8 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<p>Входящая сеть → LIDER → домашняя сеть</p></div>' +
         '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
       '</section>' +
-      '<section class="installation" role="img" aria-label="Три стабилизатора LIDER на стойке с байпасом в светлом техническом помещении">' +
-        '<div class="installation-caption"><span>3 × LIDER</span><strong>Стойка · байпас</strong></div>' +
+      '<section class="installation" role="img" aria-label="Трёхфазный комплект LIDER PS22W-30: три стабилизатора PS7500W-30 на стойке с внешним байпасом">' +
+        '<div class="installation-caption"><span>LIDER PS22W-30</span><strong>3 × PS7500W-30 · байпас</strong></div>' +
       '</section>' +
       this._summarySection("1. До стабилизаторов", ENTITY_MAP.before, "before") +
       '<div class="flow">↓ стабилизация LIDER ↓</div>' +
@@ -439,7 +439,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid rgba(152,199,235,.17);background:linear-gradient(145deg,rgba(24,50,73,.88),rgba(8,20,33,.94));border-radius:22px;box-shadow:0 14px 34px rgba(0,0,0,.22)}",
       ".hero{min-height:126px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px}",
       ".hero.compact{min-height:104px}",
-      ".installation{position:relative;min-height:390px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid rgba(152,199,235,.17);background:#d9d8d3 url('./assets/lider-room-v1.png') center center/cover no-repeat;box-shadow:0 14px 34px rgba(0,0,0,.22)}",
+      ".installation{position:relative;min-height:390px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid rgba(152,199,235,.17);background:#d9d8d3 url('./assets/lider-room-v2.jpeg') center center/cover no-repeat;box-shadow:0 14px 34px rgba(0,0,0,.22)}",
       ".installation:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 58%,rgba(4,10,16,.78) 100%);pointer-events:none}",
       ".installation-caption{position:absolute;z-index:1;left:16px;right:16px;bottom:14px;display:flex;align-items:end;justify-content:space-between;gap:12px;text-shadow:0 2px 8px #000}",
       ".installation-caption span{font-size:12px;letter-spacing:.14em;font-weight:750}",

@@ -16,7 +16,7 @@ PANEL_URL_PATH = "dashboard-lider"
 PANEL_PARENT_ROUTE = "/dashboard-infrastructure/overview"
 PANEL_ICON = "mdi:shield-flash"
 PANEL_WEB_COMPONENT = "lider-voltage-control-panel"
-PANEL_UI_VERSION = "0.1.0"
+PANEL_UI_VERSION = "0.1.1"
 PANEL_TEMPLATE_VERSION = "1.0"
 PANEL_STATIC_URL = "/lider_voltage_control_panel"
 PANEL_STATIC_REGISTERED = "panel_static_registered"
@@ -66,4 +66,3 @@ async def async_register_panel(hass: HomeAssistant) -> None:
 def async_unregister_panel(hass: HomeAssistant) -> None:
     """Remove the panel when the config entry unloads."""
     frontend.async_remove_panel(hass, PANEL_URL_PATH, warn_if_unknown=False)
-

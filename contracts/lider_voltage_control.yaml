@@ -3,9 +3,17 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.1.0
+  version: 0.1.1
 spec:
   read_only: true
+  equipment:
+    three_phase_assembly: LIDER PS22W-30
+    phase_module: LIDER PS7500W-30
+    module_count: 3
+    arrangement: vertically_stacked_on_communication_rack
+    bypass: external_manual
+    apparent_power_total_kva: 22.5
+    active_power_total_kw: 18
   points:
     before_stabilizers:
       label: До стабилизаторов
@@ -44,4 +52,3 @@ spec:
     unavailable_is_healthy: false
     missing_entity_is_healthy: false
     frontend_must_not_invent_values: true
-
