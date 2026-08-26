@@ -9,7 +9,12 @@ const ENTITY_MAP = Object.freeze({
     B: "sensor.socket_zb_3_voltage",
     C: "sensor.socket_zb_31_voltage",
   },
-  line: "sensor.socket_zb_25_voltage",
+  power: {
+    A: "sensor.power_monitor_power_a",
+    B: "sensor.power_monitor_power_b",
+    C: "sensor.power_monitor_power_c",
+  },
+  lineUniqueId: "W0035313411160_input_voltage",
   meterOnline: "binary_sensor.power_meter_online",
   phaseLoss: "binary_sensor.power_phase_loss",
 });
@@ -27,12 +32,19 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._gesture = null;
     this._lastTwoTap = 0;
     this._toastTimer = null;
+    this._lineEntityId = null;
+    this._registryLoaded = false;
+    this._registryLoading = false;
+    this._diagnosticEntities = { before: [], after: { A: [], B: [], C: [] }, line: [] };
   }
 
   set hass(value) {
     this._hass = value;
     if (!this._mounted) {
       this._mount();
+    }
+    if (!this._registryLoaded && !this._registryLoading) {
+      this._resolveRegistryEntities();
     }
     this._renderContent();
   }
@@ -58,6 +70,60 @@ class LiderVoltageControlPanel extends HTMLElement {
     }
   }
 
+  async _resolveRegistryEntities() {
+    if (!this._hass?.callWS) return;
+    this._registryLoading = true;
+    try {
+      const entries = await this._hass.callWS({ type: "config/entity_registry/list" });
+      const enabled = entries.filter((entry) => !entry.disabled_by && !entry.hidden_by);
+      const lineEntry = enabled.find((entry) =>
+        entry.platform === "stark_solarpower" && entry.unique_id === ENTITY_MAP.lineUniqueId
+      );
+      this._lineEntityId = lineEntry?.entity_id || null;
+
+      const meterDeviceIds = new Set(
+        enabled
+          .filter((entry) => Object.values(ENTITY_MAP.before).includes(entry.entity_id))
+          .map((entry) => entry.device_id)
+          .filter(Boolean)
+      );
+      this._diagnosticEntities.before = enabled
+        .filter((entry) =>
+          this._diagnosticDomain(entry.entity_id) &&
+          (meterDeviceIds.has(entry.device_id) || entry.entity_id.startsWith("sensor.power_monitor_") ||
+            [ENTITY_MAP.meterOnline, ENTITY_MAP.phaseLoss].includes(entry.entity_id))
+        )
+        .map((entry) => entry.entity_id);
+
+      for (const phase of ["A", "B", "C"]) {
+        const voltageEntry = enabled.find((entry) => entry.entity_id === ENTITY_MAP.after[phase]);
+        this._diagnosticEntities.after[phase] = enabled
+          .filter((entry) =>
+            this._diagnosticDomain(entry.entity_id) &&
+            ((voltageEntry?.device_id && entry.device_id === voltageEntry.device_id) ||
+              entry.entity_id.startsWith(ENTITY_MAP.after[phase].replace(/_voltage$/, "_")))
+          )
+          .map((entry) => entry.entity_id);
+      }
+
+      this._diagnosticEntities.line = lineEntry?.device_id
+        ? enabled
+            .filter((entry) => this._diagnosticDomain(entry.entity_id) && entry.device_id === lineEntry.device_id)
+            .map((entry) => entry.entity_id)
+        : [];
+    } catch (_err) {
+      this._lineEntityId = null;
+    } finally {
+      this._registryLoaded = true;
+      this._registryLoading = false;
+      this._renderContent();
+    }
+  }
+
+  _diagnosticDomain(entityId) {
+    return entityId?.startsWith("sensor.") || entityId?.startsWith("binary_sensor.");
+  }
+
   _mount() {
     this._mounted = true;
     this.shadowRoot.innerHTML =
@@ -65,7 +131,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant">☰</button>' +
-          '<div class="title">LIDER</div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.2.1</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить">↻</button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -142,7 +208,7 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<div class="scene-heading"><span class="eyebrow">ЭЛЕКТРОСЕТЬ</span><h1>Контроль стабилизации</h1>' +
           '<p>Вход → LIDER → домашняя сеть</p></div>' +
         '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
-        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.2.0" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
+        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.2.1" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
         this._scenePhase("A", "phase-a") +
         this._scenePhase("B", "phase-b") +
         this._scenePhase("C", "phase-c") +
@@ -160,6 +226,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<strong>Фаза ' + phase + '</strong>' +
       this._sceneReading("Вход", inputEntity, "before") +
       this._sceneReading("Выход", outputEntity, "quality") +
+      this._scenePower(ENTITY_MAP.power[phase]) +
     '</div>';
   }
 
@@ -169,7 +236,12 @@ class LiderVoltageControlPanel extends HTMLElement {
     return '<button class="scene-reading ' + severity + '" data-entity="' + entityId + '">' +
       '<span>' + label + '</span><b>' +
       (reading.available ? this._number(reading.value) + ' В' : 'Нет данных') +
-      '</b></button>';
+    '</b></button>';
+  }
+
+  _scenePower(entityId) {
+    return '<button class="scene-power" data-entity="' + entityId + '">' +
+      '<span>Мощность</span><b>' + this._stateText(entityId) + '</b></button>';
   }
 
   _summarySection(title, entities, policy) {
@@ -191,31 +263,48 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<section class="panel-card detail-grid">' +
         ["A", "B", "C"].map((phase) => this._metricCard("Фаза " + phase, entities[phase], policy, true)).join("") +
       '</section>' +
+      (policy === "before"
+        ? '<section class="panel-card"><div class="section-head"><h2>Мощность по фазам</h2></div><div class="diagnostic-grid">' +
+            ["A", "B", "C"].map((phase) => this._diagnosticCard(ENTITY_MAP.power[phase], "Фаза " + phase)).join("") +
+          '</div></section>' +
+          this._diagnosticSection("Диагностика входного измерителя", this._diagnosticEntities.before,
+            [...Object.values(entities), ...Object.values(ENTITY_MAP.power)])
+        : ["A", "B", "C"].map((phase) =>
+            this._diagnosticSection("Диагностика розетки · фаза " + phase,
+              this._diagnosticEntities.after[phase], [entities[phase]])
+          ).join("")) +
       '<section class="thresholds"><h2>Граничные значения</h2><p>' + thresholds + '</p></section>' +
       (policy === "quality" ? '<p class="note">Выходные A/B/C — подтверждённые временные контрольные точки старой панели. Постоянные датчики заменят их без изменения интерфейса.</p>' : '') +
     '</div>';
   }
 
   _lineView() {
+    const lineEntity = this._lineEntity();
     return '<div class="page">' +
       '<section class="hero compact"><div><span class="eyebrow">ОТДЕЛЬНЫЙ ОБЪЕКТ</span><h1>Неотключаемая линия</h1>' +
       '<p>После переключателя фаз; не является четвёртой фазой</p></div>' +
-      this._entityBadge(ENTITY_MAP.line, "quality") + '</section>' +
+      this._entityBadge(lineEntity, "quality") + '</section>' +
       '<section class="panel-card line-focus">' +
-        this._metricCard("Напряжение линии", ENTITY_MAP.line, "quality", true) +
-        '<p>Источник: розетка пневматического компрессора в гараже.</p>' +
+        this._metricCard("Входное напряжение UPS Котёл", lineEntity, "quality", true) +
+        '<p>Источник: вход UPS Котёл · Stark SolarPower.</p>' +
       '</section>' +
+      this._diagnosticSection("Диагностика UPS Котёл", this._diagnosticEntities.line, [lineEntity]) +
       '<section class="thresholds"><h2>Граничные значения</h2>' +
       '<p>Норма 210–230 В · внимание 205–210 / 230–235 В · существенно 198–205 / 235–242 В · авария &lt;198 / &gt;242 В.</p></section>' +
     '</div>';
   }
 
   _lineCard() {
+    const lineEntity = this._lineEntity();
     return '<section class="panel-card line-card">' +
       '<div><span class="eyebrow">НЕОТКЛЮЧАЕМАЯ ЛИНИЯ</span><h2>Отдельный контроль</h2>' +
-      '<p>Розетка компрессора · после переключателя фаз</p></div>' +
-      this._metricCard("Напряжение", ENTITY_MAP.line, "quality") +
+      '<p>Вход UPS Котёл · Stark SolarPower</p></div>' +
+      this._metricCard("Напряжение", lineEntity, "quality") +
     '</section>';
+  }
+
+  _lineEntity() {
+    return this._lineEntityId;
   }
 
   _metricCard(label, entityId, policy, large = false) {
@@ -223,11 +312,52 @@ class LiderVoltageControlPanel extends HTMLElement {
     const inputAvailable = policy !== "before" || this._inputTelemetryState() === "ok";
     const available = reading.available && inputAvailable;
     const severity = available ? this._severity(reading.value, policy) : "unavailable";
-    return '<button class="metric ' + severity + (large ? ' large' : '') + '" data-entity="' + entityId + '">' +
+    const entityAttr = entityId ? ' data-entity="' + entityId + '"' : '';
+    return '<button class="metric ' + severity + (large ? ' large' : '') + '"' + entityAttr + '>' +
       '<span class="metric-label">' + label + '</span>' +
       '<strong>' + (available ? this._number(reading.value) + ' В' : 'Нет данных') + '</strong>' +
       '<small>' + this._severityLabel(severity) + '</small>' +
     '</button>';
+  }
+
+  _diagnosticSection(title, entityIds, excluded = []) {
+    const excludedSet = new Set(excluded.filter(Boolean));
+    const entities = [...new Set(entityIds || [])]
+      .filter((entityId) => !excludedSet.has(entityId) && this._hass?.states?.[entityId]);
+    if (!entities.length) return '';
+    return '<section class="panel-card diagnostic-section">' +
+      '<div class="section-head"><h2>' + title + '</h2></div>' +
+      '<div class="diagnostic-grid">' + entities.map((entityId) => this._diagnosticCard(entityId)).join('') + '</div>' +
+    '</section>';
+  }
+
+  _diagnosticCard(entityId, explicitLabel = null) {
+    const state = this._hass?.states?.[entityId];
+    const label = explicitLabel || state?.attributes?.friendly_name ||
+      entityId.split('.')[1].replaceAll('_', ' ');
+    return '<button class="diagnostic-metric" data-entity="' + entityId + '">' +
+      '<span>' + label + '</span><strong>' + this._stateText(entityId) + '</strong>' +
+    '</button>';
+  }
+
+  _stateText(entityId) {
+    const state = this._hass?.states?.[entityId];
+    if (!state || ["unknown", "unavailable", "none", ""].includes(String(state.state).toLowerCase())) {
+      return 'Нет данных';
+    }
+    if (entityId.startsWith('binary_sensor.')) {
+      return state.state === 'on' ? 'Да' : 'Нет';
+    }
+    const value = Number(state.state);
+    const unit = state.attributes?.unit_of_measurement || '';
+    if (Number.isFinite(value)) {
+      const digits = unit === 'W' || unit === 'Вт' || unit === '%' ? 0 : 1;
+      return new Intl.NumberFormat(this._hass?.locale?.language || 'ru', {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      }).format(value) + (unit ? ' ' + unit : '');
+    }
+    return String(state.state);
   }
 
   _groupBadge(entities, policy) {
@@ -285,7 +415,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     const groups = [
       this._beforeSeverity(ENTITY_MAP.before),
       this._groupSeverity(ENTITY_MAP.after, "quality"),
-      this._entitySeverity(ENTITY_MAP.line, "quality"),
+      this._entitySeverity(this._lineEntity(), "quality"),
     ];
     return this._worst(groups);
   }
@@ -448,7 +578,9 @@ class LiderVoltageControlPanel extends HTMLElement {
       "button{font:inherit;color:inherit}",
       ".app{height:100dvh;overflow:hidden;background:var(--primary-background-color,#f5f6f8)}",
       ".header{position:fixed;z-index:20;inset:0 0 auto 0;height:calc(64px + env(safe-area-inset-top));padding:env(safe-area-inset-top) 12px 0;display:grid;grid-template-columns:58px 1fr 58px;align-items:center;background:color-mix(in srgb,var(--primary-background-color,#f5f6f8) 94%,transparent);border-bottom:1px solid var(--divider-color,#dfe3e8);backdrop-filter:blur(18px)}",
-      ".title{text-align:center;font-size:22px;font-weight:800;letter-spacing:.08em}",
+      ".title{text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}",
+      ".title strong{font-size:22px;font-weight:800;letter-spacing:.08em;line-height:1}",
+      ".title small{font-size:10px;font-weight:500;letter-spacing:.02em;color:var(--secondary-text-color,#68737d)}",
       ".shell-button{width:48px;height:48px;margin:auto;border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);font-size:27px;border-radius:15px;box-shadow:var(--ha-card-box-shadow,0 2px 7px rgba(0,0,0,.09))}",
       ".shell-button:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 10%,var(--card-background-color,#fff));color:var(--primary-color,#03a9d9)}",
       ".viewport{position:fixed;inset:calc(64px + env(safe-area-inset-top)) 0 calc(70px + env(safe-area-inset-bottom)) 0;overflow:hidden;touch-action:none}",
@@ -457,7 +589,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:126px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px}",
       ".hero.compact{min-height:104px}",
-      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.2.0') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
+      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.2.1') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
       ".installation-equipment{position:absolute;z-index:1;left:67%;bottom:3%;height:82%;width:auto;max-width:68%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
       ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
       ".scene-heading{position:absolute;z-index:4;left:18px;top:18px;max-width:62%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
@@ -469,6 +601,8 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".scene-reading{min-width:0;border:0;border-radius:10px;padding:6px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}",
       ".scene-reading span{font-size:9px;color:var(--secondary-text-color,#69737d)}",
       ".scene-reading b{font-size:12px;white-space:nowrap}",
+      ".scene-power{grid-column:1/-1;border:0;border-radius:10px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;background:color-mix(in srgb,var(--primary-color,#03a9d9) 8%,#fff)}",
+      ".scene-power span{font-size:9px;color:var(--secondary-text-color,#69737d)}.scene-power b{font-size:12px;white-space:nowrap}",
       ".installation-caption{position:absolute;z-index:4;left:50%;right:14px;bottom:14px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;color:#fff;text-shadow:0 2px 7px rgba(0,0,0,.8)}",
       ".installation-caption span{font-size:11px;letter-spacing:.14em;font-weight:750}",
       ".installation-caption strong{font-size:13px}",
@@ -486,6 +620,10 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".metric-label{color:var(--secondary-text-color,#68737d);font-size:12px}",
       ".metric strong{font-size:20px}",
       ".metric small{font-size:10px;line-height:1.2}",
+      ".diagnostic-section{display:grid;gap:2px}",
+      ".diagnostic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}",
+      ".diagnostic-metric{min-width:0;min-height:62px;border:1px solid var(--divider-color,#dfe3e8);border-radius:14px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 4%,var(--card-background-color,#fff));padding:9px 10px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;text-align:left}",
+      ".diagnostic-metric span{width:100%;font-size:10px;color:var(--secondary-text-color,#68737d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.diagnostic-metric strong{font-size:14px}",
       ".flow{text-align:center;color:var(--primary-color,#03a9d9);font-size:12px;letter-spacing:.08em;padding:1px}",
       ".line-card{display:grid;grid-template-columns:1fr 145px;align-items:center;gap:10px}",
       ".line-focus{display:grid;gap:13px;text-align:center}",
