@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- Rebuilt both input and output summaries as three equal phase columns.
+- Each phase column now gives voltage, current and power equal visual weight.
+- Removed the separate phase-power section and moved phase currents out of diagnostics.
+- Removed the redundant `LIDER` eyebrow from input and output titles.
+- Kept energy, frequency, imbalance, connectivity and other service values in diagnostics.
+- Added the native Home Assistant `Статистика` tab for 24 hours, 7 days, 30 days and 12 months.
+- History covers voltage, current and power before/after LIDER plus non-interruptible-line voltage.
+
 ## 0.3.3
 
 - Compacted detail cards by reducing unused height, padding and section gaps without reducing font sizes.
