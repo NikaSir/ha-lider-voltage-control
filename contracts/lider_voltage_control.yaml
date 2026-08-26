@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.4.1
+  version: 0.4.2
 spec:
   read_only: true
   equipment:
@@ -89,6 +89,7 @@ spec:
     provider: home_assistant_statistics_graph
     periods: [24h, 7d, 30d, 12m]
     metrics: [voltage, current, power]
+    excluded_metrics: [generation, produced_energy, export_energy, reverse_energy]
     aggregation:
       24h: 5minute
       7d: hour
