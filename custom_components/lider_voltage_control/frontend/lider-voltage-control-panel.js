@@ -131,7 +131,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.3.0</small></div>' +
+          '<div class="title"><strong>LIDER</strong><small>Voltage Control · UI v0.3.1</small></div>' +
           '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -209,7 +209,7 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<div class="scene-heading"><span class="eyebrow">ЭЛЕКТРОСЕТЬ</span><h1>Контроль электросети</h1>' +
           '<p>Вход → LIDER → домашняя сеть</p></div>' +
         '<div class="overall ' + this._overallClass() + '">' + this._overallLabel() + '</div>' +
-        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.0" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
+        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.1" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
         this._scenePhase("A", "phase-a") +
         this._scenePhase("B", "phase-b") +
         this._scenePhase("C", "phase-c") +
@@ -225,8 +225,10 @@ class LiderVoltageControlPanel extends HTMLElement {
     const outputEntity = ENTITY_MAP.after[phase];
     return '<div class="scene-phase side-input ' + positionClass + '">' +
         '<strong>Фаза ' + phase + ' · вход</strong>' +
-        this._sceneReading("Напряжение", inputEntity, "before") +
-        this._scenePower(ENTITY_MAP.power[phase]) +
+        '<div class="input-metrics">' +
+          this._scenePower(ENTITY_MAP.power[phase]) +
+          this._sceneReading("Напряжение", inputEntity, "before") +
+        '</div>' +
       '</div>' +
       '<div class="scene-phase side-output ' + positionClass + '">' +
         '<strong>Фаза ' + phase + ' · выход</strong>' +
@@ -636,23 +638,26 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:126px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px}",
       ".hero.compact{min-height:104px}",
-      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.0') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
-      ".installation-equipment{position:absolute;z-index:1;left:50%;bottom:3%;height:82%;width:auto;max-width:62%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
+      ".installation{position:relative;min-height:520px;aspect-ratio:.78;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.1') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
+      ".installation-equipment{position:absolute;z-index:1;left:54%;bottom:3%;height:82%;width:auto;max-width:60%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
       ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
-      ".scene-heading{position:absolute;z-index:4;left:18px;top:18px;max-width:62%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
-      ".scene-heading p{margin-top:4px;color:#4d555d;font-size:12px}",
+      ".scene-heading{position:absolute;z-index:4;left:18px;top:16px;max-width:45%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
+      ".scene-heading h1{font-size:22px;line-height:1.02;margin-top:3px}",
+      ".scene-heading p{margin-top:3px;color:#4d555d;font-size:10px;line-height:1.2}",
       ".overall{position:absolute;z-index:5;right:14px;top:16px;padding:8px 11px;border-radius:999px;font-weight:750;font-size:12px;text-align:center;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.09)}",
       ".scene-phase{position:absolute;z-index:5;width:29%;display:grid;grid-template-columns:1fr;gap:5px;padding:8px;border:1px solid rgba(255,255,255,.76);border-radius:16px;background:rgba(255,255,255,.91);box-shadow:0 5px 16px rgba(40,48,56,.14);backdrop-filter:blur(9px)}",
-      ".scene-phase.side-input{left:10px}",
+      ".scene-phase.side-input{left:10px;width:31%}",
       ".scene-phase.side-output{right:10px}",
       ".scene-phase>strong{font-size:11px;line-height:1.15;text-align:center}",
-      ".phase-a{top:33%}.phase-b{top:51%}.phase-c{top:69%}",
+      ".side-input.phase-a{top:34%}.side-input.phase-b{top:53%}.side-input.phase-c{top:72%}",
+      ".side-output.phase-a{top:35%}.side-output.phase-b{top:53%}.side-output.phase-c{top:71%}",
+      ".input-metrics{min-width:0;display:grid;grid-template-columns:.92fr 1.08fr;gap:5px}",
       ".scene-reading{min-width:0;border:0;border-radius:10px;padding:6px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}",
       ".scene-reading span{font-size:9px;color:var(--secondary-text-color,#69737d)}",
       ".scene-reading b{font-size:12px;white-space:nowrap}",
-      ".scene-power{border:0;border-radius:10px;padding:6px 7px;display:flex;align-items:center;justify-content:space-between;gap:4px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 8%,#fff)}",
+      ".scene-power{min-width:0;border:0;border-radius:10px;padding:6px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 8%,#fff)}",
       ".scene-power span{font-size:9px;color:var(--secondary-text-color,#69737d)}.scene-power b{font-size:12px;white-space:nowrap}",
-      ".installation-caption{position:absolute;z-index:4;left:50%;right:14px;bottom:14px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;color:#fff;text-shadow:0 2px 7px rgba(0,0,0,.8)}",
+      ".installation-caption{position:absolute;z-index:4;left:16px;right:auto;bottom:13px;max-width:47%;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;color:#fff;text-shadow:0 2px 7px rgba(0,0,0,.8)}",
       ".installation-caption span{font-size:11px;letter-spacing:.14em;font-weight:750}",
       ".installation-caption strong{font-size:13px}",
       ".eyebrow{font-size:11px;letter-spacing:.13em;color:var(--secondary-text-color,#68737d);font-weight:750}",
@@ -691,7 +696,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".tabs button.active{color:var(--primary-color,#03a9d9);background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
       ".zoom-toast{position:fixed;z-index:40;left:50%;top:calc(78px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(30,34,38,.9);color:#fff;font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
-      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:16px}.hero h1{font-size:22px}.installation{min-height:540px}.installation-equipment{left:50%;height:81%;max-width:62%}.scene-heading h1{font-size:21px}.scene-phase{width:30%;padding:7px 5px}.scene-phase.side-input{left:7px}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.scene-reading b,.scene-power b{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge,.overall{white-space:normal}}",
+      "@media (max-width:420px){.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 24px}.hero{padding:16px}.hero h1{font-size:22px}.installation{min-height:540px}.installation-equipment{left:55%;height:81%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:32%}.scene-phase.side-output{right:7px}.scene-phase>strong{font-size:10px}.input-metrics{gap:3px}.scene-reading b,.scene-power b{font-size:11px}.installation-caption{left:12px;bottom:11px}.installation-caption span{font-size:9px}.installation-caption strong{font-size:11px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge,.overall{white-space:normal}}",
     ].join("");
   }
 }
