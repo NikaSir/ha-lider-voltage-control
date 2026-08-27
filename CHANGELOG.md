@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0
+
+- Replaced the six compressed destinations with five standard bottom tabs; the non-interruptible line remains on Overview, Statistics and Diagnostics.
+- Restored 28 px bottom icons, 12 px labels and the 12–25 px meaningful-text envelope.
+- Added lazy DOM caching so returning to a visited tab reattaches the same subtree, overview image and history cards.
+- Coalesced Home Assistant updates to one animation frame and made cold Entity Registry completion reconcile changing child topology safely.
+- Suppressed synthetic clicks after pinch/pan and wait for every touch to end, preventing gesture-triggered More Info/history opens.
+- Persisted and reused the captured Header return route while retaining explicit Home Assistant navigation.
+- Expanded raw diagnostics to all enabled state-bearing entities of bound devices, excluding command-only domains.
+- Made known alarm severities outrank an unavailable phase in group summaries.
+- Replaced runtime version imports with one deterministic, self-contained production frontend bundle.
+- Added CI guards for bundle parity, five-tab geometry, typography, route persistence, gesture safety and stable rendering.
+
+## 0.5.1
+
+- Kept all six then-current destinations in one compact row with reduced 24 px icons and mobile labels.
+- This temporary compact geometry is superseded by the five-tab v0.6.0 layout.
+
 ## 0.5.0
 
 - Added a dedicated `Диагностика` tab that groups every Home Assistant entity used by the input meter, three post-LIDER phase sources and the non-interruptible-line UPS.

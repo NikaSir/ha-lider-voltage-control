@@ -44,10 +44,37 @@ jobs:
 
       - name: Validate JavaScript
         run: |
+          node scripts/build-frontend-bundle.mjs
+          git diff --exit-code -- custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js
-          node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-ui050.js
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node scripts/check-stable-dom.mjs
+
+      - name: Verify version parity
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          expected = "0.6.0"
+          manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
+          panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())
+          panel_py = Path("custom_components/lider_voltage_control/panel.py").read_text()
+          source = Path("custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js").read_text()
+          contract = Path("contracts/lider_voltage_control.yaml").read_text()
+          versions = {
+              "integration manifest": manifest["version"],
+              "panel manifest": panel_manifest["ui_version"],
+              "panel.py": re.search(r'PANEL_UI_VERSION = "([^"]+)"', panel_py).group(1),
+              "frontend source": re.search(r'const LIDER_UI_VERSION = "([^"]+)"', source).group(1),
+              "contract": re.search(r'^  version: ([^\s]+)$', contract, re.MULTILINE).group(1),
+          }
+          wrong = {name: version for name, version in versions.items() if version != expected}
+          if wrong:
+              raise SystemExit(f"Version mismatch: {wrong}")
+          print(versions)
+          PY
 
       - name: Verify panel contract
         run: |
@@ -57,10 +84,12 @@ jobs:
           grep -F '"controls": "gesture_only"' custom_components/lider_voltage_control/panel_manifest.json
           grep -F 'mdi:transmission-tower' custom_components/lider_voltage_control/panel.py
           grep -F '"header_button_px": 44' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"bottom_icon_px": 24' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"mode": "self_contained_bundle"' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"bottom_icon_px": 28' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"bottom_tabs_single_row": true' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"bottom_tab_columns": 6' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F 'grid-template-columns:repeat(6,minmax(0,1fr))' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
+          grep -F '"bottom_tab_columns": 5' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F 'grid-template-columns:repeat(5,minmax(0,1fr))' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
+          ! grep -E '^[[:space:]]*import[[:space:]]' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           grep -F '"header_center_action": "return_to_source_base_panel"' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"diagnostics"' custom_components/lider_voltage_control/panel_manifest.json
           test -f custom_components/lider_voltage_control/brand/icon.png
