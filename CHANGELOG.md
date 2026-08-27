@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+- Reflowed each mobile input phase card into separate compact power and voltage rows without reducing 12 px text.
+- Center-aligned the input and output cards with the three physical LIDER modules and reduced unused output-card padding.
+- Localized operational `V`, `A`, `W` and `Hz` units to `В`, `А`, `Вт` and `Гц` while preserving raw Home Assistant metadata in Diagnostics.
+- Shortened the overview flow caption to `Сеть → LIDER → дом` and kept it on one line at phone widths.
+- Pointed the `После` icon along the left-to-right electrical flow.
+- Replaced the clipped visible `Диагностика` label with `Диагн.` while retaining the full accessible name.
+- Added CI markers and dynamic checks for the responsive overview layout, localized units and accessible navigation.
+
 ## 0.6.0
 
 - Replaced the six compressed destinations with five standard bottom tabs; the non-interruptible line remains on Overview, Statistics and Diagnostics.

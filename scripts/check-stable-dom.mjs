@@ -19,7 +19,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.6.0"',
+  'const LIDER_UI_VERSION = "0.6.1"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
   'this._canvas.replaceChildren(root)',
@@ -28,10 +28,18 @@ for (const marker of [
   'if (event.touches.length > 0) return',
   'sessionStorage.getItem(RETURN_ROUTE_KEY)',
   'window.history.pushState',
-  'this._tabButton("diagnostics", "mdi:stethoscope", "Диагностика")',
+  'this._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика")',
+  'this._tabButton("after", "mdi:arrow-right-bold", "После")',
+  '<p>Сеть → LIDER → дом</p>',
   'grid-template-columns:repeat(5,minmax(0,1fr))',
   '--mdc-icon-size:28px',
   '.tabs button small{display:block;max-width:100%;font-size:12px',
+  '@media (max-width:560px)',
+  '.input-metrics{grid-template-columns:1fr;gap:3px}',
+  "V: 'В'",
+  "A: 'А'",
+  "W: 'Вт'",
+  "Hz: 'Гц'",
 ]) {
   if (!bundle.includes(marker)) throw new Error(`required UI contract marker is missing: ${marker}`);
 }
@@ -155,6 +163,27 @@ if (panel._worst(["unavailable", "emergency", "normal"]) !== "emergency") {
 }
 if (panel._worst(["unavailable", "normal"]) !== "unavailable") {
   throw new Error("unavailable data must remain explicit when there is no known alarm");
+}
+panel._hass = {
+  locale: { language: "ru" },
+  states: {
+    "sensor.power": { state: "332", attributes: { unit_of_measurement: "W" } },
+    "sensor.current": { state: "5", attributes: { unit_of_measurement: "A" } },
+    "sensor.frequency": { state: "50", attributes: { unit_of_measurement: "Hz" } },
+  },
+};
+if (panel._stateText("sensor.power") !== "332 Вт") {
+  throw new Error("operational power unit must be localized to Вт");
+}
+if (panel._stateText("sensor.current") !== "5,0 А") {
+  throw new Error("operational current unit must be localized to А");
+}
+if (panel._stateText("sensor.frequency") !== "50,0 Гц") {
+  throw new Error("operational frequency unit must be localized to Гц");
+}
+const diagnosticsTab = panel._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика");
+if (!diagnosticsTab.includes('aria-label="Диагностика"') || !diagnosticsTab.includes('<small>Диагн.</small>')) {
+  throw new Error("compact diagnostics label must retain its full accessible name");
 }
 panel._connectionState = () => "unknown";
 panel._binaryState = (entityId) => entityId === "binary_sensor.power_phase_loss" ? "on" : null;

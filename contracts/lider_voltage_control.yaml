@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: LIDER
-  version: 0.6.0
+  version: 0.6.1
 spec:
   read_only: true
   rendering:
@@ -24,6 +24,8 @@ spec:
     bottom_icon_px: 28
     bottom_label_px: 12
     non_interruptible_line_locations: [overview, history, diagnostics]
+    diagnostics_visible_label: Диагн.
+    diagnostics_accessible_label: Диагностика
     return_route:
       persisted_once: true
       history_back_allowed: false
@@ -42,6 +44,12 @@ spec:
     bypass: manual_per_phase
     apparent_power_total_kva: 22.5
     active_power_total_kw: 18
+  overview:
+    mobile_input_metrics: two_stacked_rows
+    metric_order: [power, voltage]
+    phase_cards_aligned_by_center: true
+    flow_caption: Сеть → LIDER → дом
+    localized_units: {V: В, A: А, W: Вт, Hz: Гц, kWh: kWh}
   points:
     before_stabilizers:
       label: До стабилизаторов
