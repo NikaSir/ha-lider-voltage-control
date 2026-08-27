@@ -50,6 +50,9 @@ jobs:
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node scripts/check-stable-dom.mjs
 
+      - name: Enforce NikaS UI standard v1.7
+        run: python scripts/check_nikas_ui_standard.py
+
       - name: Verify version parity
         run: |
           python - <<'PY'

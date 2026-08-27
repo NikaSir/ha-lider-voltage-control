@@ -108,3 +108,6 @@
 - Overview phase cards are split into input/power on the left and output voltage on the right of each stabilizer.
 - Constrained zoom, native 100% vertical scrolling and safe-area handling retained.
 - Repository checks now verify the sidebar icon, integration brand icon and shell dimensions.
+## 0.6.1
+
+- Enforce NikaS UI Standard v1.7 title-plaque return to the originating base panel and validate the shared route handoff in CI.

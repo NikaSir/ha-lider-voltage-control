@@ -8,6 +8,7 @@
   "preferred_view": "overview",
   "ui_version": "0.6.1",
   "template_version": "1.0",
+  "ui_standard": "1.7",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
     "mode": "self_contained_bundle",
@@ -30,6 +31,7 @@
   "shell": {
     "header_left_action": "hass-toggle-menu",
     "header_center_action": "return_to_source_base_panel",
+    "source_route_handoff_key": "nikas.specialized.source_route.v1",
     "header_center_lines": ["title", "ui_version"],
     "header_history_back_allowed": false,
     "header_return_route_capture": ["return_to_or_from_query", "session_route_handoff", "saved_panel_route", "same_origin_referrer", "parent_route"],

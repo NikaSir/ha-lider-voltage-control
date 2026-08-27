@@ -1,4 +1,4 @@
-# LIDER compliance with NikaS UI v1.6
+# LIDER compliance with NikaS UI v1.7
 
 Version under review: integration/UI `0.6.1`.
 
