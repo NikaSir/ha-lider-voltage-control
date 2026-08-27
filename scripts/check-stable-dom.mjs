@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import vm from "node:vm";
 
-const panelPath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js";
+const panelPath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js";
+const entryPath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js";
 const source = fs.readFileSync(panelPath, "utf8") + "\nthis.Panel = LiderVoltageControlPanel;";
+const entrySource = fs.readFileSync(entryPath, "utf8");
 
 class HTMLElement {
   attachShadow() {
@@ -71,4 +73,20 @@ if (renderCalls !== 2) {
   throw new Error(`structural rendering must remain limited to initial mount and tab changes; found ${renderCalls} call sites`);
 }
 
-console.log("Stable DOM contract verified");
+if (!entrySource.includes('this._tabButton("diagnostics"')) {
+  throw new Error("diagnostics tab is missing from the entry layer");
+}
+if (!entrySource.includes("window.history.pushState")) {
+  throw new Error("return header must use explicit Home Assistant navigation");
+}
+if (entrySource.includes("history.back(")) {
+  throw new Error("history.back() is forbidden for specialized-panel return navigation");
+}
+if (!entrySource.includes("nikas.specialized.source_route.v1")) {
+  throw new Error("source-route handoff contract is missing");
+}
+if (!entrySource.includes("replaceChildren") && !entrySource.includes("reconcileTree")) {
+  throw new Error("diagnostics live updates must remain scoped to the working canvas");
+}
+
+console.log("Stable DOM and specialized Header contracts verified");
