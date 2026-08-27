@@ -57,7 +57,7 @@ jobs:
           import re
           from pathlib import Path
 
-          expected = "0.6.0"
+          expected = "0.6.1"
           manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
           panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())
           panel_py = Path("custom_components/lider_voltage_control/panel.py").read_text()
@@ -88,6 +88,9 @@ jobs:
           grep -F '"bottom_icon_px": 28' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"bottom_tabs_single_row": true' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"bottom_tab_columns": 5' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"mobile_input_metrics": "two_stacked_rows"' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F 'this._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика")' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
+          grep -F '@media (max-width:560px)' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           grep -F 'grid-template-columns:repeat(5,minmax(0,1fr))' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           ! grep -E '^[[:space:]]*import[[:space:]]' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           grep -F '"header_center_action": "return_to_source_base_panel"' custom_components/lider_voltage_control/panel_manifest.json
