@@ -6,11 +6,12 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.5.0",
+  "ui_version": "0.5.1",
   "template_version": "1.0",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
-    "mode": "stable_entry_plus_core",
+    "mode": "stable_wrapper_plus_ui_layer_plus_core",
+    "ui_layer_module": "lider-voltage-control-panel-ui050.js",
     "core_module": "lider-voltage-control-panel-core.js",
     "runtime_previous_version_imports": false,
     "hero_composition": "separate_room_and_equipment_layers"
@@ -38,8 +39,12 @@
     "header_refresh_on_card": true,
     "header_refresh_tone": "primary",
     "bottom_tabs": ["overview", "before", "after", "line", "history", "diagnostics"],
+    "bottom_tabs_single_row": true,
+    "bottom_tab_columns": 6,
     "bottom_tab_min_height_px": 58,
-    "bottom_icon_px": 28,
+    "bottom_icon_px": 24,
+    "bottom_label_px": 11,
+    "bottom_label_mobile_px": 10,
     "bottom_full_width": true,
     "safe_area_once": true
   },
