@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+- Added a dedicated `Диагностика` tab that groups every Home Assistant entity used by the input meter, three post-LIDER phase sources and the non-interruptible-line UPS.
+- Diagnostics now expose the raw entity `state`, every available attribute, state timestamps and Home Assistant context without filtering service or energy fields.
+- Converted the centered Header title into a 44 px+ clickable two-line return pill: `LIDER` / `UI v0.5.0`.
+- Added explicit safe return routing to `Дом сейчас`, `Действия` or `Инфраструктура` without `history.back()`; direct LIDER opens fall back to `/dashboard-infrastructure/overview`.
+- Preserved the stable Header, zoom viewport, scroll state and Bottom Tab Bar during telemetry and diagnostics updates.
+- Added CI checks for the diagnostics tab, explicit return-route contract and the ban on `history.back()`.
+- Updated the local NikaS specialized-panel standard snapshot to v1.6.
+
 ## 0.4.4
 
 - Replaced telemetry-driven canvas reconstruction with point updates of existing DOM nodes.
