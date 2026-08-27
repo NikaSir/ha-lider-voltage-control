@@ -44,6 +44,7 @@ jobs:
 
       - name: Validate JavaScript
         run: |
+          node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node scripts/check-stable-dom.mjs
 
@@ -56,6 +57,8 @@ jobs:
           grep -F 'mdi:transmission-tower' custom_components/lider_voltage_control/panel.py
           grep -F '"header_button_px": 44' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"bottom_icon_px": 28' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"header_center_action": "return_to_source_base_panel"' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"diagnostics"' custom_components/lider_voltage_control/panel_manifest.json
           test -f custom_components/lider_voltage_control/brand/icon.png
           test -f custom_components/lider_voltage_control/frontend/assets/lider-room-background-v1.webp
           test -f custom_components/lider_voltage_control/frontend/assets/lider-rack-ps22w30-v2.webp
