@@ -45,6 +45,7 @@ jobs:
       - name: Validate JavaScript
         run: |
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js
+          node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-ui050.js
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node scripts/check-stable-dom.mjs
 
@@ -56,7 +57,10 @@ jobs:
           grep -F '"controls": "gesture_only"' custom_components/lider_voltage_control/panel_manifest.json
           grep -F 'mdi:transmission-tower' custom_components/lider_voltage_control/panel.py
           grep -F '"header_button_px": 44' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"bottom_icon_px": 28' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"bottom_icon_px": 24' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"bottom_tabs_single_row": true' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"bottom_tab_columns": 6' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F 'grid-template-columns:repeat(6,minmax(0,1fr))' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           grep -F '"header_center_action": "return_to_source_base_panel"' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"diagnostics"' custom_components/lider_voltage_control/panel_manifest.json
           test -f custom_components/lider_voltage_control/brand/icon.png

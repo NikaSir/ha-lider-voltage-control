@@ -2,8 +2,10 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const panelPath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js";
+const uiLayerPath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-ui050.js";
 const entryPath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js";
 const source = fs.readFileSync(panelPath, "utf8") + "\nthis.Panel = LiderVoltageControlPanel;";
+const uiLayerSource = fs.readFileSync(uiLayerPath, "utf8");
 const entrySource = fs.readFileSync(entryPath, "utf8");
 
 class HTMLElement {
@@ -73,20 +75,33 @@ if (renderCalls !== 2) {
   throw new Error(`structural rendering must remain limited to initial mount and tab changes; found ${renderCalls} call sites`);
 }
 
-if (!entrySource.includes('this._tabButton("diagnostics"')) {
-  throw new Error("diagnostics tab is missing from the entry layer");
+if (!uiLayerSource.includes('this._tabButton("diagnostics"')) {
+  throw new Error("diagnostics tab is missing from the UI layer");
 }
-if (!entrySource.includes("window.history.pushState")) {
+if (!uiLayerSource.includes("window.history.pushState")) {
   throw new Error("return header must use explicit Home Assistant navigation");
 }
-if (entrySource.includes("history.back(")) {
+if (uiLayerSource.includes("history.back(")) {
   throw new Error("history.back() is forbidden for specialized-panel return navigation");
 }
-if (!entrySource.includes("nikas.specialized.source_route.v1")) {
+if (!uiLayerSource.includes("nikas.specialized.source_route.v1")) {
   throw new Error("source-route handoff contract is missing");
 }
-if (!entrySource.includes("replaceChildren") && !entrySource.includes("reconcileTree")) {
+if (!uiLayerSource.includes("replaceChildren") && !uiLayerSource.includes("reconcileTree")) {
   throw new Error("diagnostics live updates must remain scoped to the working canvas");
 }
 
-console.log("Stable DOM and specialized Header contracts verified");
+if (!entrySource.includes("grid-template-columns:repeat(6,minmax(0,1fr))")) {
+  throw new Error("bottom navigation must use exactly six equal columns");
+}
+if (!entrySource.includes("--mdc-icon-size:24px")) {
+  throw new Error("compact bottom navigation must use 24 px icons");
+}
+if (!entrySource.includes("style.dataset.nikasUi = UI_VERSION")) {
+  throw new Error("UI 0.5.1 overrides must be injected as an independent valid style block");
+}
+if (entrySource.includes(".concat([")) {
+  throw new Error("array-to-string CSS concatenation is forbidden in the entry layer");
+}
+
+console.log("Stable DOM, specialized Header and compact navigation contracts verified");
