@@ -1,4 +1,4 @@
-import "./lider-voltage-control-panel-core.js?v=0.4.4";
+import "./lider-voltage-control-panel-core.js?v=0.5.0";
 
 const UI_VERSION = "0.5.0";
 const RETURN_ROUTE_KEY = "nikas.lider.return_route.v1";
@@ -270,7 +270,7 @@ function installPatch() {
       ".title-return{justify-self:center;min-width:min(290px,100%);max-width:100%;min-height:44px;padding:5px 14px;border:1px solid color-mix(in srgb,var(--primary-color,#03a9d9) 24%,var(--divider-color,#dfe3e8));border-radius:16px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 5%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.06);cursor:pointer}",
       ".title-return:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 13%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 42%,var(--divider-color,#dfe3e8));box-shadow:0 2px 7px rgba(23,45,76,.05)}",
       ".tabs{grid-template-columns:repeat(6,minmax(0,1fr))}",
-      ".tabs button small{font-size:10px;line-height:1.05}",
+      ".tabs button small{font-size:11px;line-height:1.05;letter-spacing:-.01em}",
       ".diagnostics-page{padding-bottom:6px}",
       ".diagnostics-hero .hero-title{min-width:0}.diagnostics-hero p{margin-top:4px;font-size:13px;color:var(--secondary-text-color,#68737d)}",
       ".raw-group{padding:12px;display:grid;gap:9px}",
@@ -284,7 +284,7 @@ function installPatch() {
       ".raw-row{min-width:0;display:grid;grid-template-columns:minmax(108px,.8fr) minmax(0,1.4fr);gap:10px;padding:7px 2px;border-bottom:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 55%,transparent)}",
       ".raw-row span{font-size:12px;color:var(--secondary-text-color,#68737d);overflow-wrap:anywhere}.raw-row strong{min-width:0;font-size:13px;font-weight:650;text-align:right;overflow-wrap:anywhere;word-break:break-word}.raw-state strong{font-size:15px;color:var(--primary-text-color,#17191c)}",
       ".raw-empty{margin:0;padding:8px 2px;font-size:13px;color:var(--secondary-text-color,#68737d)}",
-      "@media(max-width:430px){.title-return{min-width:0;width:100%;padding-inline:8px}.title-return strong{font-size:21px}.title-return small{font-size:13px}.tabs button small{font-size:9px}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
+      "@media(max-width:430px){.title-return{min-width:0;width:100%;padding-inline:8px}.title-return strong{font-size:21px}.title-return small{font-size:13px}.tabs button small{font-size:10px}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
     ]);
   };
 
