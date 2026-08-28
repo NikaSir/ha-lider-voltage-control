@@ -19,7 +19,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.7.0"',
+  'const LIDER_UI_VERSION = "0.7.1"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
   'this._canvas.replaceChildren(root)',
@@ -27,6 +27,9 @@ for (const marker of [
   'this._suppressClicksUntil = Date.now() + 500',
   'if (event.touches.length > 0) return',
   'sessionStorage.getItem(RETURN_ROUTE_KEY)',
+  'handedOffRaw !== null',
+  'handedOffAtRaw !== null',
+  'handedOffAge >= 0',
   '["return_to", "from"]',
   'window.history.pushState',
   '.title-return:focus-visible',
@@ -115,13 +118,33 @@ vm.createContext(context);
 vm.runInContext(source + "\nthis.Panel = LiderVoltageControlPanel; this.resolveReturnRoute = resolveReturnRoute;", context);
 
 context.window.location.href = "https://ha.local/dashboard-lider?return_to=https%3A%2F%2Fevil.example%2Fdashboard-house&from=%2Fdashboard-actions%2Foverview";
-if (context.resolveReturnRoute({}) !== "/dashboard-actions/overview") {
+if (context.resolveReturnRoute({}) !== "/dashboard-actions/home") {
   throw new Error("an invalid return_to must not suppress a valid from route");
 }
 context.window.location.href = "https://ha.local/dashboard-lider";
 
-session.set("nikas.lider.return_route.v1", "/dashboard-house/overview");
-if (context.resolveReturnRoute({}) !== "/dashboard-house/overview") {
+session.clear();
+session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
+if (context.resolveReturnRoute({}) !== "/dashboard-infrastructure/overview") {
+  throw new Error("a route without its timestamp must fail closed");
+}
+session.clear();
+session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
+session.set("nikas.specialized.source_route_at.v1", String(Date.now() + 1_000));
+if (context.resolveReturnRoute({}) !== "/dashboard-infrastructure/overview") {
+  throw new Error("a future hand-off timestamp must fail closed");
+}
+session.clear();
+session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
+session.set("nikas.specialized.source_route_at.v1", String(Date.now()));
+if (context.resolveReturnRoute({}) !== "/dashboard-actions/home" ||
+    session.has("nikas.specialized.source_route.v1") ||
+    session.has("nikas.specialized.source_route_at.v1")) {
+  throw new Error("a valid hand-off pair must be consumed exactly once");
+}
+
+session.set("nikas.lider.return_route.v1", "/dashboard-house-v11/overview");
+if (context.resolveReturnRoute({}) !== "/dashboard-house-v11/home") {
   throw new Error("saved Header return route must survive a panel reload");
 }
 
