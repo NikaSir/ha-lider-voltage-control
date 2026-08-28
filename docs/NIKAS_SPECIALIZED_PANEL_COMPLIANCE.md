@@ -1,16 +1,18 @@
 # LIDER compliance with NikaS UI v1.9 / Navigation Contract v1.1 / rule 1.17
 
-Version under review: integration/UI `0.7.1`.
+Version under review: integration/UI `0.8.0`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | One persistent Header, work viewport and Bottom Tab Bar | PASS | Shell is mounted once; CI rejects additional `shadowRoot.innerHTML` assignments. |
+| Height-locked phone shell | PASS | A fixed host owns one three-row grid; only the middle viewport scrolls and scroll chaining into the outer HA document is disabled. CI rejects the former `100dvh`/independent-fixed-layer topology. |
 | Stable telemetry rendering | PASS | `set hass()` coalesces updates to one animation frame and reconciles the active view only. |
 | Lazy visited-view DOM cache | PASS | Returning to a tab reattaches its existing subtree, including the overview image and history cards. |
 | Connection/freshness indicator | PASS | Independent `Локально / Нет связи / Нет данных` and freshness categories; category-only patching. |
 | Gesture safety | PASS | Pinch waits for both fingers to lift and suppresses the following synthetic click. |
 | Zoom bounds and 100% native scroll | PASS | 75–200%, axis-aware clamping, 100% origin normalization and two-finger reset. |
-| Bottom navigation | PASS | Five equal destinations, 28 px MDI icons, 12 px labels, fixed outside the viewport. |
+| Bottom navigation | PASS | Five equal destinations, 28 px MDI icons and 12 px labels remain in the fixed shell row outside the work viewport. |
+| Panel and HA menu name | PASS | The Header and registered sidebar title use the approved `Электросеть`; LIDER remains the equipment/integration identity. |
 | Mobile overview labels | PASS | At phone widths, full `Мощность` and `Напряжение` labels occupy separate compact rows; typography remains 12 px. |
 | Operational units | PASS | Latin `V/A/W/Hz` metadata is presented as `В/А/Вт/Гц`; raw diagnostics retain source metadata. |
 | Typography | PASS | Automated guard enforces the 12–25 px meaningful-text envelope. |

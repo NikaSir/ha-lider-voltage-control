@@ -19,7 +19,8 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.7.1"',
+  'const LIDER_UI_VERSION = "0.8.0"',
+  'const PANEL_TITLE = "Электросеть"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
   'this._canvas.replaceChildren(root)',
@@ -47,8 +48,25 @@ for (const marker of [
   "A: 'А'",
   "W: 'Вт'",
   "Hz: 'Гц'",
+  ':host{position:fixed;inset:0',
+  '.app{position:absolute;inset:0;display:grid;grid-template-rows:',
+  'minmax(0,1fr)',
+  '.viewport{position:relative;',
+  'overscroll-behavior:none;touch-action:pan-y',
+  '.tabs{position:relative;',
 ]) {
   if (!bundle.includes(marker)) throw new Error(`required UI contract marker is missing: ${marker}`);
+}
+
+for (const forbiddenShellMarker of [
+  'height:100dvh',
+  '.header{position:fixed',
+  '.viewport{position:fixed',
+  '.tabs{position:fixed',
+]) {
+  if (bundle.includes(forbiddenShellMarker)) {
+    throw new Error(`phone shell can leak into the outer scrolling surface: ${forbiddenShellMarker}`);
+  }
 }
 
 if ([...bundle.matchAll(/'<main class="viewport">'/g)].length !== 1) {
