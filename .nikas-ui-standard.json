@@ -1,7 +1,7 @@
 {
   "version": "1.7",
   "standard_path": "docs/NIKAS_SPECIALIZED_PANEL_UI_STANDARD.md",
-  "standard_sha256": "17afc8ea93b07a4362c45e5e9d5f6504158e70a9c19328a545403a92f1e08a8c",
+  "standard_sha256": "3c79b1c28c6ba2a80a77425f77176acbe64fdeea7c6bc4fefcd1d7ba0c2ad33a",
   "role": "specialized",
   "runtime_files": [
     "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js",
@@ -18,5 +18,15 @@
   },
   "forbidden_runtime_markers": [
     "history.back("
-  ]
+  ],
+  "title_plaque_reference": {
+    "implementation": "LIDER",
+    "min_width": "min(290px,100%)",
+    "min_height_px": 44,
+    "padding_px": "5 14",
+    "radius_px": 16,
+    "primary_background_mix_percent": 5,
+    "primary_border_mix_percent": 24,
+    "shadow": "0 5px 16px rgba(23,45,76,.06)"
+  }
 }
