@@ -1,0 +1,22 @@
+{
+  "version": "1.7",
+  "standard_path": "docs/NIKAS_SPECIALIZED_PANEL_UI_STANDARD.md",
+  "standard_sha256": "17afc8ea93b07a4362c45e5e9d5f6504158e70a9c19328a545403a92f1e08a8c",
+  "role": "specialized",
+  "runtime_files": [
+    "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js",
+    "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js"
+  ],
+  "production_entrypoint": "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js",
+  "header_return": {
+    "button_marker": "class=\"title title-return\"",
+    "version_marker": "<small>UI v",
+    "focus_marker": ".title-return:focus-visible",
+    "pressed_marker": ".title-return:active",
+    "explicit_precedence_marker": "[\"return_to\", \"from\"]",
+    "capture_once_marker": "this._returnRoute = resolveReturnRoute(this)"
+  },
+  "forbidden_runtime_markers": [
+    "history.back("
+  ]
+}

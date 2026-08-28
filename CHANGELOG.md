@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+
+- Rebuilt the integration-owned shell against mandatory NikaS UI Standard v1.7 / rule 1.17.
+- Added a fixed Header and Bottom Tab Bar loading surface with deterministic skeleton content before the first Home Assistant state object arrives; blank startup frames are prohibited.
+- Kept `unknown`, `unavailable` and absent entities explicit as `Нет данных` without inventing zero or healthy values.
+- Stopped constructing unverified post-LIDER current/power entity IDs; related metrics and history cards are created only from live state or Entity Registry evidence.
+- Fixed explicit return-route precedence so an invalid `return_to` cannot suppress a valid `from` route.
+- Added the canonical visible focus and pressed states to the centered two-line Header return plaque.
+- Raised the integration, UI contract and copied template version together and retained one autonomous production bundle.
+- Added a canonical-standard checksum and CI guard for source-route, Header and production-entrypoint compliance.
+
 ## 0.6.1
 
 - Reflowed each mobile input phase card into separate compact power and voltage rows without reducing 12 px text.

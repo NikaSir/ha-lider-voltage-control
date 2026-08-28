@@ -19,7 +19,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.6.1"',
+  'const LIDER_UI_VERSION = "0.7.0"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
   'this._canvas.replaceChildren(root)',
@@ -27,7 +27,11 @@ for (const marker of [
   'this._suppressClicksUntil = Date.now() + 500',
   'if (event.touches.length > 0) return',
   'sessionStorage.getItem(RETURN_ROUTE_KEY)',
+  '["return_to", "from"]',
   'window.history.pushState',
+  '.title-return:focus-visible',
+  '.title-return:active',
+  'class="page loading-page"',
   'this._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика")',
   'this._tabButton("after", "mdi:arrow-right-bold", "После")',
   '<p>Сеть → LIDER → дом</p>',
@@ -110,12 +114,22 @@ function flushFrames() {
 vm.createContext(context);
 vm.runInContext(source + "\nthis.Panel = LiderVoltageControlPanel; this.resolveReturnRoute = resolveReturnRoute;", context);
 
+context.window.location.href = "https://ha.local/dashboard-lider?return_to=https%3A%2F%2Fevil.example%2Fdashboard-house&from=%2Fdashboard-actions%2Foverview";
+if (context.resolveReturnRoute({}) !== "/dashboard-actions/overview") {
+  throw new Error("an invalid return_to must not suppress a valid from route");
+}
+context.window.location.href = "https://ha.local/dashboard-lider";
+
 session.set("nikas.lider.return_route.v1", "/dashboard-house/overview");
 if (context.resolveReturnRoute({}) !== "/dashboard-house/overview") {
   throw new Error("saved Header return route must survive a panel reload");
 }
 
 const panel = new context.Panel();
+if (!panel._viewHtml().includes('class="page loading-page"') ||
+    !panel._viewHtml().includes("Загрузка данных…")) {
+  throw new Error("cold mount must expose a deterministic loading surface before hass arrives");
+}
 panel._mounted = true;
 panel._registryLoaded = true;
 panel._captureTelemetrySnapshot = () => {};
@@ -149,6 +163,8 @@ if (registryPatches !== 1) throw new Error("registry completion must reconcile o
 
 const coldHistory = new context.Panel();
 coldHistory._mounted = true;
+coldHistory._loading = false;
+coldHistory._renderedLoading = false;
 coldHistory._registryLoaded = true;
 coldHistory._view = "history";
 coldHistory._renderedView = "history";
@@ -180,6 +196,13 @@ if (panel._stateText("sensor.current") !== "5,0 А") {
 }
 if (panel._stateText("sensor.frequency") !== "50,0 Гц") {
   throw new Error("operational frequency unit must be localized to Гц");
+}
+if (panel._relatedAfterEntity("A", "current") !== null) {
+  throw new Error("the frontend must not invent a related entity id absent from live state and Entity Registry");
+}
+const historyWithoutRelatedOutput = panel._historyCardConfigs({ hours: 24 });
+if (historyWithoutRelatedOutput["after-current"] || historyWithoutRelatedOutput["after-power"]) {
+  throw new Error("history must omit unverified post-LIDER current and power entities");
 }
 const diagnosticsTab = panel._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика");
 if (!diagnosticsTab.includes('aria-label="Диагностика"') || !diagnosticsTab.includes('<small>Диагн.</small>')) {

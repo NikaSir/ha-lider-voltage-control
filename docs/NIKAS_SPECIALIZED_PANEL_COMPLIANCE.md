@@ -1,6 +1,6 @@
-# LIDER compliance with NikaS UI v1.6
+# LIDER compliance with NikaS UI v1.7 / rule 1.17
 
-Version under review: integration/UI `0.6.1`.
+Version under review: integration/UI `0.7.0`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
@@ -15,6 +15,9 @@ Version under review: integration/UI `0.6.1`.
 | Operational units | PASS | Latin `V/A/W/Hz` metadata is presented as `В/А/Вт/Гц`; raw diagnostics retain source metadata. |
 | Typography | PASS | Automated guard enforces the 12–25 px meaningful-text envelope. |
 | Header return | PASS | Captured safe route is persisted and navigation is explicit; `history.back()` is rejected. |
+| Header explicit-route precedence | PASS | The first valid route is selected from `return_to`, then `from`; an invalid first parameter cannot suppress the second. |
+| Header focus and pressed states | PASS | The centered semantic button has persistent `:focus-visible` and `:active` treatments. |
+| Initial loading surface | PASS | Fixed Header, deterministic loading skeleton and Bottom Tab Bar mount before the first `hass` update; no blank startup canvas. |
 | Diagnostics completeness | PASS | All enabled state-bearing entities of the bound devices, raw attributes, timestamps and context. |
 | Autonomous frontend delivery | PASS | Deterministic self-contained production bundle with no runtime imports. |
 | Statistics grouping | PASS | `До стабилизаторов`, `После стабилизаторов`, then the non-interruptible line; generation/export excluded. |
