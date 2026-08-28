@@ -31,7 +31,9 @@ const TELEMETRY_SNAPSHOT_KEY = "nikas.lider.telemetry_snapshot.v1";
 const DEFAULT_POLL_PERIOD_MS = 30_000;
 const STALE_PERIOD_MULTIPLIER = 3;
 const STATUS_REFRESH_MS = 15_000;
-const LIDER_UI_VERSION = "0.8.0";
+const HISTORY_MAX_POINTS_PER_SERIES = 360;
+const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
+const LIDER_UI_VERSION = "0.8.1";
 const PANEL_TITLE = "Электросеть";
 const RETURN_ROUTE_KEY = "nikas.lider.return_route.v1";
 const SOURCE_ROUTE_KEY = "nikas.specialized.source_route.v1";
@@ -397,6 +399,8 @@ class LiderVoltageControlPanel extends HTMLElement {
   _renderContent() {
     if (!this._canvas) return;
     this._historyMountToken += 1;
+    this._canvas.dataset.view = this._view;
+    this._viewport.dataset.view = this._view;
     let root = this._viewCache.get(this._view);
     if (root && root.classList.contains("loading-page") !== this._loading) {
       this._viewCache.delete(this._view);
@@ -576,7 +580,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _overview() {
-    return '<div class="page">' +
+    return '<div class="page overview-page">' +
       '<section class="installation" role="img" aria-label="Три стабилизатора LIDER PS7500W-15 на стойке с внешним пофазным байпасом">' +
         '<div class="scene-heading"><h1>Контроль электросети</h1>' +
           '<p>Сеть → LIDER → дом</p></div>' +
@@ -726,7 +730,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '</section>' +
       '<section class="panel-card history-group"><h2>Неотключаемая линия</h2>' +
         this._historyHost("line-voltage") + '</section>' +
-      '<p class="note">Графики используют обычную историю Home Assistant и доступны в пределах срока хранения Recorder.</p>' +
+      '<p class="note">Графики читают обычную историю Recorder и доступны в пределах настроенного срока хранения.</p>' +
     '</div>';
   }
 
@@ -746,18 +750,29 @@ class LiderVoltageControlPanel extends HTMLElement {
       "12m": { hours: 8760 },
     }[this._historyPeriod];
     try {
-      const helpers = await window.loadCardHelpers();
-      if (this._view !== "history" || mountToken !== this._historyMountToken) return;
+      if (typeof this._hass?.callApi !== "function") {
+        throw new Error("Home Assistant callApi is unavailable");
+      }
       const configs = this._historyCardConfigs(period);
+      const entityIds = [...new Set(Object.values(configs)
+        .flatMap((config) => config.entities.map((entry) => entry.entity))
+        .filter(Boolean))];
+      if (!entityIds.length) throw new Error("No history entities are available");
+      const end = new Date();
+      const start = new Date(end.getTime() - period.hours * 3_600_000);
+      const historyPath = this._historyApiPath(start, end, entityIds);
+      const history = await this._hass.callApi("get", historyPath);
+      if (this._view !== "history" || mountToken !== this._historyMountToken) return;
+      const seriesByEntity = this._historySeriesByEntity(history);
       this._historyCards = [];
       for (const [id, config] of Object.entries(configs)) {
         if (this._view !== "history" || mountToken !== this._historyMountToken) return;
         const host = this._canvas.querySelector('[data-history-card="' + id + '"]');
         if (!host) continue;
-        const card = helpers.createCardElement(config);
-        card.hass = this._hass;
-        host.replaceChildren(card);
-        this._historyCards.push(card);
+        const template = document.createElement("template");
+        template.innerHTML = this._historyGraphHtml(config, seriesByEntity, start, end);
+        host.replaceChildren(template.content.cloneNode(true));
+        this._historyCards.push(host);
       }
       this._historyMountedPeriod = this._historyPeriod;
       this._canvas.querySelectorAll(".history-loading").forEach((node) => {
@@ -765,9 +780,104 @@ class LiderVoltageControlPanel extends HTMLElement {
       });
     } catch (_err) {
       this._canvas.querySelectorAll(".history-loading").forEach((node) => {
-        node.textContent = "История Home Assistant недоступна";
+        node.textContent = "История Recorder недоступна";
       });
     }
+  }
+
+  _historyApiPath(start, end, entityIds) {
+    return "history/period/" + encodeURIComponent(start.toISOString()) +
+      "?end_time=" + encodeURIComponent(end.toISOString()) +
+      "&filter_entity_id=" + encodeURIComponent(entityIds.join(",")) +
+      "&minimal_response&no_attributes";
+  }
+
+  _historySeriesByEntity(history) {
+    const result = {};
+    for (const rawSeries of Array.isArray(history) ? history : []) {
+      if (!Array.isArray(rawSeries) || !rawSeries.length) continue;
+      const entityId = rawSeries.find((entry) => entry?.entity_id)?.entity_id;
+      if (!entityId) continue;
+      result[entityId] = rawSeries.map((entry) => ({
+        time: Date.parse(entry?.last_changed || entry?.last_updated || ""),
+        value: Number(entry?.state),
+      })).filter((entry) => Number.isFinite(entry.time) && Number.isFinite(entry.value));
+    }
+    return result;
+  }
+
+  _historySamplePoints(points) {
+    if (points.length <= HISTORY_MAX_POINTS_PER_SERIES) return points;
+    const sampled = [];
+    for (let index = 0; index < HISTORY_MAX_POINTS_PER_SERIES; index += 1) {
+      const sourceIndex = Math.round(index * (points.length - 1) /
+        (HISTORY_MAX_POINTS_PER_SERIES - 1));
+      sampled.push(points[sourceIndex]);
+    }
+    return sampled;
+  }
+
+  _historyGraphHtml(config, seriesByEntity, start, end) {
+    const series = config.entities.map((entry, index) => ({
+      entity: entry.entity,
+      name: entry.name,
+      color: HISTORY_COLORS[index % HISTORY_COLORS.length],
+      points: this._historySamplePoints(seriesByEntity[entry.entity] || []),
+    })).filter((entry) => entry.points.length);
+    const values = series.flatMap((entry) => entry.points.map((point) => point.value));
+    const unitEntity = config.entities.find((entry) =>
+      this._hass?.states?.[entry.entity]?.attributes?.unit_of_measurement);
+    const unit = this._displayUnit(this._hass?.states?.[unitEntity?.entity]
+      ?.attributes?.unit_of_measurement || "");
+    if (!values.length) {
+      return '<article class="history-direct-card"><div class="history-chart-head"><h3>' +
+        escapeHtml(config.title) + '</h3></div><div class="history-empty">Нет записей за выбранный период</div></article>';
+    }
+    let minimum = Math.min(...values);
+    let maximum = Math.max(...values);
+    const padding = maximum === minimum ? Math.max(Math.abs(maximum) * .03, 1) : (maximum - minimum) * .08;
+    minimum -= padding;
+    maximum += padding;
+    const timeSpan = Math.max(1, end.getTime() - start.getTime());
+    const valueSpan = Math.max(1e-9, maximum - minimum);
+    const polylines = series.map((entry) => {
+      const points = entry.points.map((point) => {
+        const x = 34 + Math.max(0, Math.min(1, (point.time - start.getTime()) / timeSpan)) * 582;
+        const y = 18 + (1 - (point.value - minimum) / valueSpan) * 146;
+        return x.toFixed(1) + "," + y.toFixed(1);
+      }).join(" ");
+      return '<polyline points="' + points + '" fill="none" stroke="' + entry.color +
+        '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></polyline>';
+    }).join("");
+    const legend = series.map((entry) => '<span><i style="--history-color:' + entry.color +
+      '"></i>' + escapeHtml(entry.name) + '</span>').join("");
+    return '<article class="history-direct-card"><div class="history-chart-head"><h3>' +
+      escapeHtml(config.title) + '</h3><span>' + escapeHtml(this._historyValue(Math.min(...values), unit)) +
+      ' — ' + escapeHtml(this._historyValue(Math.max(...values), unit)) + '</span></div>' +
+      '<div class="history-plot"><svg viewBox="0 0 640 182" preserveAspectRatio="none" role="img" aria-label="' +
+      escapeHtml(config.title) + '"><line x1="34" y1="18" x2="616" y2="18" class="history-grid-line"></line>' +
+      '<line x1="34" y1="91" x2="616" y2="91" class="history-grid-line"></line>' +
+      '<line x1="34" y1="164" x2="616" y2="164" class="history-grid-line"></line>' + polylines +
+      '</svg></div><div class="history-time"><span>' + escapeHtml(this._historyDateLabel(start)) +
+      '</span><span>' + escapeHtml(this._historyDateLabel(end)) + '</span></div>' +
+      '<div class="history-legend">' + legend + '</div></article>';
+  }
+
+  _historyValue(value, unit) {
+    const digits = unit === "Вт" ? 0 : 1;
+    return new Intl.NumberFormat(this._hass?.locale?.language || "ru", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(value) + (unit ? " " + unit : "");
+  }
+
+  _historyDateLabel(value) {
+    return new Intl.DateTimeFormat(this._hass?.locale?.language || "ru", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value);
   }
 
   _historyCardConfigs(period) {
@@ -778,12 +888,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     const afterRelated = (kind) => Object.fromEntries(
       phases.map((phase) => [phase, this._relatedAfterEntity(phase, kind)])
     );
-    const graph = (title, entities) => ({
-      type: "history-graph",
-      title,
-      entities,
-      hours_to_show: period.hours,
-    });
+    const graph = (title, entities) => ({ title, entities, hours: period.hours });
     const configs = {};
     const addGraph = (id, title, entities) => {
       if (entities.length) configs[id] = graph(title, entities);
@@ -1400,12 +1505,15 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".shell-button:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 10%,var(--card-background-color,#fff));color:var(--primary-color,#03a9d9)}",
       ".viewport{position:relative;z-index:1;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;touch-action:pan-y;-webkit-overflow-scrolling:touch;overflow-anchor:none}",
       ".viewport.zoomed{overflow:hidden;overscroll-behavior:none;touch-action:none}",
-      ".canvas{width:100%;min-height:100%;transform-origin:0 0;will-change:transform;padding:14px 14px 28px}",
+      ".viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:hidden}",
+      ".canvas{width:100%;height:100%;min-height:100%;transform-origin:0 0;will-change:transform;padding:14px 14px 28px}",
       ".page{width:min(100%,760px);margin:0 auto;display:grid;gap:9px}",
+      ".overview-page{height:100%;min-height:0;grid-template-rows:minmax(0,1fr) auto}",
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:110px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}",
       ".hero.compact{min-height:80px;padding:12px 16px}",
       ".installation{position:relative;min-height:576px;aspect-ratio:.70;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.2') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
+      ".overview-page .installation{min-height:0;aspect-ratio:auto}",
       ".installation-equipment{position:absolute;z-index:1;left:54%;bottom:1%;height:79%;width:auto;max-width:60%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
       ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
       ".scene-heading{position:absolute;z-index:4;left:18px;top:16px;max-width:45%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
@@ -1459,9 +1567,14 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".history-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}",
       ".history-periods button{min-width:0;min-height:42px;padding:6px 4px;border:1px solid var(--divider-color,#dfe3e8);border-radius:13px;background:transparent;color:var(--secondary-text-color,#68737d);font:inherit;font-size:12px;font-weight:700;line-height:1.15}",
       ".history-periods button.active{color:var(--primary-color,#03a9d9);border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 32%,var(--divider-color,#dfe3e8));background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
-      ".history-card-host{min-width:0}.history-card-host>ha-card{margin:0}",
+      ".history-card-host{min-width:0}",
       ".history-group{display:grid;gap:8px;padding:11px}.history-group>h2{padding:2px 3px 1px;font-size:18px}",
-      ".history-group .history-card-host>ha-card{box-shadow:none;border:1px solid var(--divider-color,#dfe3e8);border-radius:15px;overflow:hidden}",
+      ".history-direct-card{min-width:0;padding:11px;border:1px solid var(--divider-color,#dfe3e8);border-radius:15px;background:var(--card-background-color,#fff);overflow:hidden}",
+      ".history-chart-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.history-chart-head h3{margin:0;font-size:15px}.history-chart-head span{font-size:12px;font-weight:650;color:var(--secondary-text-color,#68737d);white-space:nowrap}",
+      ".history-plot{height:182px;margin-top:7px;border-radius:11px;background:color-mix(in srgb,var(--primary-text-color,#17191c) 2.5%,var(--card-background-color,#fff));overflow:hidden}.history-plot svg{display:block;width:100%;height:100%}.history-grid-line{stroke:color-mix(in srgb,var(--divider-color,#dfe3e8) 80%,transparent);stroke-width:1}",
+      ".history-time{display:flex;justify-content:space-between;gap:8px;margin-top:3px;color:var(--secondary-text-color,#68737d)}.history-time span{font-size:12px}",
+      ".history-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:7px}.history-legend span{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:650;color:var(--secondary-text-color,#68737d)}.history-legend i{width:10px;height:10px;border-radius:50%;background:var(--history-color);flex:0 0 auto}",
+      ".history-empty{min-height:150px;margin-top:7px;display:grid;place-items:center;text-align:center;color:var(--secondary-text-color,#68737d);font-size:13px}",
       ".history-loading{min-height:150px;padding:18px;border:1px solid var(--divider-color,#dfe3e8);border-radius:20px;background:var(--card-background-color,#fff);display:grid;place-items:center;color:var(--secondary-text-color,#68737d);font-size:13px}",
       ".loading-page{min-height:100%;display:grid;grid-template-rows:minmax(420px,1fr) 124px auto;gap:12px}.loading-page>p{margin:0;text-align:center;color:var(--secondary-text-color,#68737d);font-size:13px;font-weight:600}.loading-skeleton{border:1px solid var(--divider-color,#dfe3e8);border-radius:24px;background:color-mix(in srgb,var(--primary-text-color,#17191c) 6%,var(--card-background-color,#fff))}.loading-scene{min-height:560px}.loading-line{min-height:124px}",
       ".flow{text-align:center;color:var(--primary-color,#03a9d9);font-size:12px;letter-spacing:.08em;padding:1px}",

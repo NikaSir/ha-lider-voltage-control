@@ -19,11 +19,13 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.0"',
+  'const LIDER_UI_VERSION = "0.8.1"',
   'const PANEL_TITLE = "Электросеть"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
   'this._canvas.replaceChildren(root)',
+  'this._canvas.dataset.view = this._view',
+  'this._viewport.dataset.view = this._view',
   'this._queueLiveUpdate()',
   'this._suppressClicksUntil = Date.now() + 500',
   'if (event.touches.length > 0) return',
@@ -39,6 +41,7 @@ for (const marker of [
   'this._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика")',
   'this._tabButton("after", "mdi:arrow-right-bold", "После")',
   '<p>Сеть → LIDER → дом</p>',
+  'class="page overview-page"',
   'grid-template-columns:repeat(5,minmax(0,1fr))',
   '--mdc-icon-size:28px',
   '.tabs button small{display:block;max-width:100%;font-size:12px',
@@ -53,9 +56,20 @@ for (const marker of [
   'minmax(0,1fr)',
   '.viewport{position:relative;',
   'overscroll-behavior:none;touch-action:pan-y',
+  '.viewport[data-view=\\"overview\\"]:not(.zoomed){overflow-y:hidden}',
+  '.canvas{width:100%;height:100%;min-height:100%',
+  '.overview-page{height:100%;min-height:0;grid-template-rows:minmax(0,1fr) auto}',
+  '.overview-page .installation{min-height:0;aspect-ratio:auto}',
   '.tabs{position:relative;',
+  'this._hass.callApi("get", historyPath)',
+  '&minimal_response&no_attributes',
+  'class="history-direct-card"',
 ]) {
   if (!bundle.includes(marker)) throw new Error(`required UI contract marker is missing: ${marker}`);
+}
+
+if (bundle.includes("window.loadCardHelpers")) {
+  throw new Error("integration-owned history must not depend on Lovelace card helpers");
 }
 
 for (const forbiddenShellMarker of [
@@ -214,6 +228,51 @@ let historyMounts = 0;
 coldHistory._mountHistoryCards = () => { historyMounts += 1; };
 coldHistory._updateLiveDom();
 if (historyMounts !== 1) throw new Error("cold Entity Registry completion must mount history cards");
+
+const historyPanel = new context.Panel();
+historyPanel._hass = {
+  locale: { language: "ru" },
+  states: {
+    "sensor.power_monitor_voltage_a": { attributes: { unit_of_measurement: "V" } },
+  },
+};
+const historyStart = new Date("2026-08-27T00:00:00.000Z");
+const historyEnd = new Date("2026-08-28T00:00:00.000Z");
+const historyPath = historyPanel._historyApiPath(
+  historyStart,
+  historyEnd,
+  ["sensor.power_monitor_voltage_a", "sensor.power_monitor_voltage_b"]
+);
+for (const marker of [
+  "history/period/2026-08-27T00%3A00%3A00.000Z",
+  "end_time=2026-08-28T00%3A00%3A00.000Z",
+  "filter_entity_id=sensor.power_monitor_voltage_a%2Csensor.power_monitor_voltage_b",
+  "minimal_response&no_attributes",
+]) {
+  if (!historyPath.includes(marker)) throw new Error(`Recorder history path is incomplete: ${marker}`);
+}
+const recorderSeries = historyPanel._historySeriesByEntity([[
+  { entity_id: "sensor.power_monitor_voltage_a", state: "228.5", last_changed: "2026-08-27T00:00:00.000Z" },
+  { state: "231.0", last_changed: "2026-08-27T12:00:00.000Z" },
+]]);
+if (recorderSeries["sensor.power_monitor_voltage_a"]?.length !== 2 ||
+    recorderSeries["sensor.power_monitor_voltage_a"][1].value !== 231) {
+  throw new Error("minimal Recorder history response is not parsed correctly");
+}
+const manyPoints = Array.from({ length: 1000 }, (_, index) => ({ time: index, value: index }));
+const sampledPoints = historyPanel._historySamplePoints(manyPoints);
+if (sampledPoints.length !== 360 || sampledPoints[0] !== manyPoints[0] ||
+    sampledPoints.at(-1) !== manyPoints.at(-1)) {
+  throw new Error("history SVG sampling must preserve the first and last factual points");
+}
+const graphHtml = historyPanel._historyGraphHtml({
+  title: "Напряжение",
+  entities: [{ entity: "sensor.power_monitor_voltage_a", name: "Фаза A" }],
+}, recorderSeries, historyStart, historyEnd);
+if (!graphHtml.includes('class="history-direct-card"') || !graphHtml.includes("<polyline") ||
+    !graphHtml.includes("Фаза A") || !graphHtml.includes("В")) {
+  throw new Error("autonomous Recorder graph does not expose its factual series");
+}
 
 if (panel._worst(["unavailable", "emergency", "normal"]) !== "emergency") {
   throw new Error("known emergency must not be hidden by an unavailable phase");
