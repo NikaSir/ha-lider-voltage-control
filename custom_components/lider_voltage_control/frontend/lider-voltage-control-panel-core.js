@@ -31,7 +31,7 @@ const TELEMETRY_SNAPSHOT_KEY = "nikas.lider.telemetry_snapshot.v1";
 const DEFAULT_POLL_PERIOD_MS = 30_000;
 const STALE_PERIOD_MULTIPLIER = 3;
 const STATUS_REFRESH_MS = 15_000;
-const LIDER_UI_VERSION = "0.7.0";
+const LIDER_UI_VERSION = "0.7.1";
 const RETURN_ROUTE_KEY = "nikas.lider.return_route.v1";
 const SOURCE_ROUTE_KEY = "nikas.specialized.source_route.v1";
 const SOURCE_ROUTE_AT_KEY = "nikas.specialized.source_route_at.v1";
@@ -90,11 +90,16 @@ function resolveReturnRoute(panel) {
   let handedOff = null;
   let saved = null;
   try {
+    const handedOffRaw = sessionStorage.getItem(SOURCE_ROUTE_KEY);
     const handedOffAtRaw = sessionStorage.getItem(SOURCE_ROUTE_AT_KEY);
     const handedOffAt = Number(handedOffAtRaw);
-    const handoffIsFresh = handedOffAtRaw === null
-      || (Number.isFinite(handedOffAt) && Date.now() - handedOffAt <= SOURCE_ROUTE_TTL_MS);
-    handedOff = handoffIsFresh ? safeReturnRoute(sessionStorage.getItem(SOURCE_ROUTE_KEY)) : null;
+    const handedOffAge = Date.now() - handedOffAt;
+    const handoffIsFresh = handedOffRaw !== null
+      && handedOffAtRaw !== null
+      && Number.isFinite(handedOffAt)
+      && handedOffAge >= 0
+      && handedOffAge <= SOURCE_ROUTE_TTL_MS;
+    handedOff = handoffIsFresh ? safeReturnRoute(handedOffRaw) : null;
     sessionStorage.removeItem(SOURCE_ROUTE_KEY);
     sessionStorage.removeItem(SOURCE_ROUTE_AT_KEY);
     saved = safeReturnRoute(sessionStorage.getItem(RETURN_ROUTE_KEY));

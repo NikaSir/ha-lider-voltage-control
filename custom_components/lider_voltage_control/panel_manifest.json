@@ -6,8 +6,8 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.7.0",
-  "template_version": "1.7",
+  "ui_version": "0.7.1",
+  "template_version": "1.9",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
     "mode": "self_contained_bundle",

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- Requires the one-shot source route and timestamp as a complete pair and rejects invalid, stale and future hand-offs before resolving the Header return route.
+- Adopts NikaS Specialized Panel UI Standard v1.9, Navigation Contract v1.1 and explicit registry-backed, read-only data-truth metadata.
+- Declares only the autonomous generated bundle as the production runtime and verifies deterministic source-to-bundle parity in CI.
+
 ## 0.7.0
 
 - Rebuilt the integration-owned shell against mandatory NikaS UI Standard v1.7 / rule 1.17.

@@ -1,6 +1,6 @@
-# LIDER compliance with NikaS UI v1.8 / Navigation Contract v1.0 / rule 1.17
+# LIDER compliance with NikaS UI v1.9 / Navigation Contract v1.1 / rule 1.17
 
-Version under review: integration/UI `0.7.0`.
+Version under review: integration/UI `0.7.1`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
@@ -17,6 +17,8 @@ Version under review: integration/UI `0.7.0`.
 | Header return | PASS | Captured safe route is persisted and navigation is explicit; `history.back()` is rejected. |
 | Header explicit-route precedence | PASS | The first valid route is selected from `return_to`, then `from`; an invalid first parameter cannot suppress the second. |
 | Header focus and pressed states | PASS | The centered semantic button has persistent `:focus-visible` and `:active` treatments. |
+| Strict source hand-off | PASS | Route and timestamp are required together and invalid, stale or future hand-offs fail closed before saved/referrer/configured fallbacks. |
+| Data truth and command policy | PASS | The panel is read-only; fixed verified contract points and registry-discovered related entities never fabricate missing values, related IDs or healthy states. |
 | Initial loading surface | PASS | Fixed Header, deterministic loading skeleton and Bottom Tab Bar mount before the first `hass` update; no blank startup canvas. |
 | Diagnostics completeness | PASS | All enabled state-bearing entities of the bound devices, raw attributes, timestamps and context. |
 | Autonomous frontend delivery | PASS | Deterministic self-contained production bundle with no runtime imports. |

@@ -44,8 +44,7 @@ jobs:
 
       - name: Validate JavaScript
         run: |
-          node scripts/build-frontend-bundle.mjs
-          git diff --exit-code -- custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
+          node scripts/build-frontend-bundle.mjs --check
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node scripts/check-stable-dom.mjs
@@ -60,7 +59,7 @@ jobs:
           import re
           from pathlib import Path
 
-          expected = "0.7.0"
+          expected = "0.7.1"
           manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
           panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())
           panel_py = Path("custom_components/lider_voltage_control/panel.py").read_text()
