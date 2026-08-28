@@ -15,7 +15,7 @@
     "scripts/build-frontend-bundle.mjs",
     "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js"
   ],
-  "ui_version": "0.8.0",
+  "ui_version": "0.8.1",
   "web_component": "lider-voltage-control-panel",
   "bundle_contract": {
     "autonomous": true,

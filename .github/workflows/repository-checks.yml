@@ -59,7 +59,7 @@ jobs:
           import re
           from pathlib import Path
 
-          expected = "0.8.0"
+          expected = "0.8.1"
           expected_title = "Электросеть"
           manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
           panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())

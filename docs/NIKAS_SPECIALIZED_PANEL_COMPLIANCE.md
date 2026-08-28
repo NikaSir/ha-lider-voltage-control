@@ -1,6 +1,6 @@
 # LIDER compliance with NikaS UI v1.9 / Navigation Contract v1.1 / rule 1.17
 
-Version under review: integration/UI `0.8.0`.
+Version under review: integration/UI `0.8.1`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
@@ -14,6 +14,7 @@ Version under review: integration/UI `0.8.0`.
 | Bottom navigation | PASS | Five equal destinations, 28 px MDI icons and 12 px labels remain in the fixed shell row outside the work viewport. |
 | Panel and HA menu name | PASS | The Header and registered sidebar title use the approved `Электросеть`; LIDER remains the equipment/integration identity. |
 | Mobile overview labels | PASS | At phone widths, full `Мощность` and `Напряжение` labels occupy separate compact rows; typography remains 12 px. |
+| Overview height fit | PASS | Overview uses the exact work-viewport height: its installation scene absorbs the available remainder above the line card, and 100% scale exposes no residual vertical scroll. Other long tabs keep native work-area scrolling. |
 | Operational units | PASS | Latin `V/A/W/Hz` metadata is presented as `В/А/Вт/Гц`; raw diagnostics retain source metadata. |
 | Typography | PASS | Automated guard enforces the 12–25 px meaningful-text envelope. |
 | Header return | PASS | Captured safe route is persisted and navigation is explicit; `history.back()` is rejected. |
@@ -24,9 +25,10 @@ Version under review: integration/UI `0.8.0`.
 | Initial loading surface | PASS | Fixed Header, deterministic loading skeleton and Bottom Tab Bar mount before the first `hass` update; no blank startup canvas. |
 | Diagnostics completeness | PASS | All enabled state-bearing entities of the bound devices, raw attributes, timestamps and context. |
 | Autonomous frontend delivery | PASS | Deterministic self-contained production bundle with no runtime imports. |
-| Statistics grouping | PASS | `До стабилизаторов`, `После стабилизаторов`, then the non-interruptible line; generation/export excluded. |
+| Statistics grouping | PASS | `До стабилизаторов`, `После стабилизаторов`, then the non-interruptible line; generation/export excluded. History uses authenticated Recorder REST data and autonomous SVG rather than unavailable Lovelace-only helpers. |
 | Repository checks | PASS | Local syntax, version parity, bundle, contract and stable-DOM checks pass; the publication PR must repeat them. |
 | HACS/Hassfest | PENDING | Must pass on the publication PR and merge commit. |
-| iPhone Pro Max portrait acceptance | GAP | Requires installation from `main` through HACS and the user's real-phone check. |
+| iPhone Pro Max portrait shell acceptance | PASS | User accepted v0.8.0 on a real phone: fixed chrome, native/inertial work scrolling, short views, ten tab switches, pinch/reset and telemetry updates all passed without movement, white frames or flicker. |
+| Recorder history phone acceptance | GAP | v0.8.1 must confirm that every available 24h/7d/30d/12m series renders from Recorder after HACS installation. |
 
-The phone GAP is intentionally not marked as passed by static analysis. Acceptance should include ten consecutive tab switches, pinch/pan/reset, long diagnostics scrolling, repeated telemetry updates, loss/recovery, Header return and confirmation that fixed chrome never flashes or moves.
+The remaining phone GAP is limited to the new Recorder graph path. The fixed shell and interaction baseline do not require repeat redesign; regression acceptance still checks that opening and changing history periods leaves Header, Bottom Tab Bar, zoom and telemetry updates stable.

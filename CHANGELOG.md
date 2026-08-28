@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.1
+
+- Replaces the unavailable `window.loadCardHelpers()` dependency in the integration-owned custom panel with the supported authenticated `hass.callApi()` frontend method.
+- Reads factual state history directly from Home Assistant Recorder for 24 hours, 7 days, 30 days and 12 months.
+- Renders autonomous SVG charts for voltage, current and power while preserving the approved fixed shell and stable-DOM behavior.
+- Limits only the number of plotted SVG points per series; available Recorder data, missing states and retention depth remain explicit and are never fabricated.
+- Fits Overview exactly between the persistent Header and Bottom Tab Bar by assigning the installation scene the remaining height above the non-interruptible-line card; the short page no longer has a residual vertical scroll.
+- Adds CI guards that reject a return to Lovelace card-helper coupling.
+
 ## 0.8.0
 
 - Renames the Home Assistant sidebar entry and the persistent Header title to `Электросеть`; LIDER remains the integration and equipment identity.
