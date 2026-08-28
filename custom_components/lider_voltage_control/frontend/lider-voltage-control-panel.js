@@ -82,7 +82,9 @@ function safeReturnRoute(value) {
 
 function resolveReturnRoute(panel) {
   const current = new URL(window.location.href);
-  const explicit = safeReturnRoute(current.searchParams.get("return_to") || current.searchParams.get("from"));
+  const explicit = ["return_to", "from"]
+    .map((key) => safeReturnRoute(current.searchParams.get(key)))
+    .find(Boolean) || null;
   let handedOff = null;
   let saved = null;
   try {
@@ -1333,6 +1335,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".title{text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}",
       ".title-return{justify-self:center;min-width:min(290px,100%);max-width:100%;min-height:44px;padding:5px 14px;border:1px solid color-mix(in srgb,var(--primary-color,#03a9d9) 24%,var(--divider-color,#dfe3e8));border-radius:16px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 5%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.06);cursor:pointer}",
       ".title-return:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 13%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 42%,var(--divider-color,#dfe3e8));box-shadow:0 2px 7px rgba(23,45,76,.05)}",
+      ".title-return:focus-visible{outline:2px solid var(--primary-color,#03a9d9);outline-offset:2px}",
       ".title strong{font-size:23px;font-weight:800;letter-spacing:.08em;line-height:1.05;color:var(--primary-text-color,#17191c)}",
       ".title small{margin-top:3px;font-size:14px;font-weight:560;line-height:1.2;letter-spacing:.01em;color:var(--secondary-text-color,#68737d);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}",
       ".shell-button{width:44px;min-width:44px;height:44px;min-height:44px;margin:auto;padding:0;border:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 72%,transparent);background:var(--card-background-color,#fff);border-radius:16px;display:grid;place-items:center;box-shadow:0 7px 20px rgba(23,45,76,.08)}",

@@ -14,7 +14,7 @@ Version under review: integration/UI `0.6.1`.
 | Mobile overview labels | PASS | At phone widths, full `Мощность` and `Напряжение` labels occupy separate compact rows; typography remains 12 px. |
 | Operational units | PASS | Latin `V/A/W/Hz` metadata is presented as `В/А/Вт/Гц`; raw diagnostics retain source metadata. |
 | Typography | PASS | Automated guard enforces the 12–25 px meaningful-text envelope. |
-| Header return | PASS | Captured safe route is persisted and navigation is explicit; `history.back()` is rejected. |
+| Header return | PASS | The semantic `LIDER / UI v0.6.1` title plaque has focus/pressed states; the first valid explicit route, one-shot hand-off, saved route, referrer, configured parent and fallback are bounded to the three NikaS base roots. Navigation is explicit and `history.back()` is rejected in the production bundle. |
 | Diagnostics completeness | PASS | All enabled state-bearing entities of the bound devices, raw attributes, timestamps and context. |
 | Autonomous frontend delivery | PASS | Deterministic self-contained production bundle with no runtime imports. |
 | Statistics grouping | PASS | `До стабилизаторов`, `После стабилизаторов`, then the non-interruptible line; generation/export excluded. |
