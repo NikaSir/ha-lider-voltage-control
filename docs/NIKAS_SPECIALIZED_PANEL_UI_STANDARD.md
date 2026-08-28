@@ -6,6 +6,7 @@
 **Primary acceptance viewport:** iPhone Pro Max, portrait
 **Reference visual implementation:** Stark SolarPower / UPS
 **Reference typography and status treatment:** LIDER
+**Reference Header title plaque:** LIDER
 
 This document supersedes every earlier shell, Header, zoom, scrolling and Bottom Tab Bar rule. Historical documents remain useful only where they do not conflict with this standard.
 
@@ -209,3 +210,14 @@ Each repository also maintains `docs/NIKAS_SPECIALIZED_PANEL_COMPLIANCE.md` (or 
 - GitHub Releases are not used.
 - Automatic release tags are not used as a publication gate or update channel. An internal integration/UI version does not require a Git tag.
 - A pull request remains draft until automated checks pass and the real-phone acceptance items above are ready for user verification.
+
+## LIDER central title plaque reference
+
+The centered two-line Header title plaque uses the LIDER reference geometry and tone:
+
+- `justify-self:center`; `min-width:min(290px,100%)`; `max-width:100%`; `min-height:44px`; `padding:5px 14px`;
+- on narrow phones: `min-width:0; width:100%; padding-inline:8px`;
+- `1px` border with primary-color mix `24%`; `16px` radius; primary-color background mix `5%`; `0 5px 16px rgba(23,45,76,.06)` shadow;
+- pressed: background mix `13%`, border mix `42%`, `0 2px 7px rgba(23,45,76,.05)`; focus-visible: `2px` primary outline and `2px` offset.
+
+A transparent/plain-text title, a white-only local variant, or an integration-specific color is not conforming.
