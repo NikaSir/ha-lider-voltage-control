@@ -31,7 +31,7 @@ const TELEMETRY_SNAPSHOT_KEY = "nikas.lider.telemetry_snapshot.v1";
 const DEFAULT_POLL_PERIOD_MS = 30_000;
 const STALE_PERIOD_MULTIPLIER = 3;
 const STATUS_REFRESH_MS = 15_000;
-const LIDER_UI_VERSION = "0.6.1";
+const LIDER_UI_VERSION = "0.7.0";
 const RETURN_ROUTE_KEY = "nikas.lider.return_route.v1";
 const SOURCE_ROUTE_KEY = "nikas.specialized.source_route.v1";
 const SAFE_DEFAULT_ROUTE = "/dashboard-infrastructure/overview";
@@ -81,7 +81,9 @@ function safeReturnRoute(value) {
 
 function resolveReturnRoute(panel) {
   const current = new URL(window.location.href);
-  const explicit = safeReturnRoute(current.searchParams.get("return_to") || current.searchParams.get("from"));
+  const explicit = ["return_to", "from"]
+    .map((key) => safeReturnRoute(current.searchParams.get(key)))
+    .find(Boolean) || null;
   let handedOff = null;
   let saved = null;
   try {
@@ -119,6 +121,8 @@ class LiderVoltageControlPanel extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._hass = null;
+    this._panel = null;
+    this._loading = true;
     const storedView = localStorage.getItem(VIEW_KEY) || "overview";
     this._view = VALID_VIEWS.has(storedView) ? storedView : "overview";
     this._zoom = this._loadZoom();
@@ -136,6 +140,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._telemetrySnapshot = this._loadTelemetrySnapshot();
     this._statusTimer = null;
     this._renderedView = null;
+    this._renderedLoading = null;
     this._statusCategoryKey = null;
     this._viewCache = new Map();
     this._historyMountedPeriod = null;
@@ -146,6 +151,7 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   set hass(value) {
     this._hass = value;
+    this._loading = !value;
     this._captureTelemetrySnapshot();
     if (!this._mounted) {
       this._mount();
@@ -158,6 +164,14 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   get hass() {
     return this._hass;
+  }
+
+  set panel(value) {
+    this._panel = value;
+  }
+
+  get panel() {
+    return this._panel;
   }
 
   connectedCallback() {
@@ -370,6 +384,10 @@ class LiderVoltageControlPanel extends HTMLElement {
     if (!this._canvas) return;
     this._historyMountToken += 1;
     let root = this._viewCache.get(this._view);
+    if (root && root.classList.contains("loading-page") !== this._loading) {
+      this._viewCache.delete(this._view);
+      root = null;
+    }
     if (!root) {
       const template = document.createElement("template");
       template.innerHTML = this._viewHtml(this._view);
@@ -379,11 +397,12 @@ class LiderVoltageControlPanel extends HTMLElement {
     }
     if (this._canvas.firstElementChild !== root) this._canvas.replaceChildren(root);
     this._renderedView = this._view;
+    this._renderedLoading = this._loading;
     this._statusCategoryKey = null;
     this.shadowRoot.querySelectorAll(".tabs button").forEach((button) => {
       button.classList.toggle("active", button.dataset.view === this._view);
     });
-    if (this._view === "history") {
+    if (!this._loading && this._view === "history") {
       if (this._historyMountedPeriod !== this._historyPeriod || !this._historyCards.length) {
         requestAnimationFrame(() => this._mountHistoryCards());
       } else {
@@ -395,6 +414,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _viewHtml(view = this._view) {
+    if (this._loading) return this._loadingView();
     const renderers = {
       overview: () => this._overview(),
       before: () => this._detailGroup("До стабилизаторов", ENTITY_MAP.before, "before"),
@@ -407,6 +427,20 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _updateLiveDom() {
     if (!this._canvas || this._renderedView !== this._view) return;
+    if (this._renderedLoading !== this._loading) {
+      const template = document.createElement("template");
+      template.innerHTML = this._viewHtml(this._view);
+      const current = this._canvas.firstElementChild;
+      const next = template.content.firstElementChild;
+      if (current && next) this._patchExistingTree(current, next);
+      this._renderedLoading = this._loading;
+      if (!this._loading && this._view === "history") {
+        requestAnimationFrame(() => this._mountHistoryCards());
+      }
+      this._updateConnectionBadge();
+      return;
+    }
+    if (this._loading) return;
     if (this._view === "history") {
       if (this._registryLoaded &&
           (this._historyMountedPeriod !== this._historyPeriod || !this._historyCards.length)) {
@@ -430,6 +464,14 @@ class LiderVoltageControlPanel extends HTMLElement {
       }
     }
     this._updateConnectionBadge();
+  }
+
+  _loadingView() {
+    return '<div class="page loading-page" aria-live="polite" aria-busy="true">' +
+      '<section class="loading-skeleton loading-scene" aria-hidden="true"></section>' +
+      '<section class="loading-skeleton loading-line" aria-hidden="true"></section>' +
+      '<p>Загрузка данных…</p>' +
+    '</div>';
   }
 
   _sameNodeKind(current, next) {
@@ -641,7 +683,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       }
       const friendlyName = this._hass?.states?.[entityId]?.attributes?.friendly_name || "";
       return namePattern.test(entityId) || namePattern.test(friendlyName);
-    }) || exact;
+    }) || null;
   }
 
   _historyView() {
@@ -717,7 +759,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   _historyCardConfigs(period) {
     const phases = ["A", "B", "C"];
     const entityList = (map, prefix) => phases
-      .filter((phase) => !this._isGenerationEntity(map[phase]))
+      .filter((phase) => map[phase] && !this._isGenerationEntity(map[phase]))
       .map((phase) => ({ entity: map[phase], name: prefix + " " + phase }));
     const afterRelated = (kind) => Object.fromEntries(
       phases.map((phase) => [phase, this._relatedAfterEntity(phase, kind)])
@@ -728,14 +770,16 @@ class LiderVoltageControlPanel extends HTMLElement {
       entities,
       hours_to_show: period.hours,
     });
-    const configs = {
-      "before-voltage": graph("Напряжение", entityList(ENTITY_MAP.before, "Фаза")),
-      "before-current": graph("Ток", entityList(ENTITY_MAP.current, "Фаза")),
-      "before-power": graph("Мощность", entityList(ENTITY_MAP.power, "Фаза")),
-      "after-voltage": graph("Напряжение", entityList(ENTITY_MAP.after, "Фаза")),
-      "after-current": graph("Ток", entityList(afterRelated("current"), "Фаза")),
-      "after-power": graph("Мощность", entityList(afterRelated("power"), "Фаза")),
+    const configs = {};
+    const addGraph = (id, title, entities) => {
+      if (entities.length) configs[id] = graph(title, entities);
     };
+    addGraph("before-voltage", "Напряжение", entityList(ENTITY_MAP.before, "Фаза"));
+    addGraph("before-current", "Ток", entityList(ENTITY_MAP.current, "Фаза"));
+    addGraph("before-power", "Мощность", entityList(ENTITY_MAP.power, "Фаза"));
+    addGraph("after-voltage", "Напряжение", entityList(ENTITY_MAP.after, "Фаза"));
+    addGraph("after-current", "Ток", entityList(afterRelated("current"), "Фаза"));
+    addGraph("after-power", "Мощность", entityList(afterRelated("power"), "Фаза"));
     if (this._lineEntity()) {
       configs["line-voltage"] = graph("Напряжение", [{
         entity: this._lineEntity(),
@@ -1332,6 +1376,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".title{text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}",
       ".title-return{justify-self:center;min-width:min(290px,100%);max-width:100%;min-height:44px;padding:5px 14px;border:1px solid color-mix(in srgb,var(--primary-color,#03a9d9) 24%,var(--divider-color,#dfe3e8));border-radius:16px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 5%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.06);cursor:pointer}",
       ".title-return:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 13%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 42%,var(--divider-color,#dfe3e8));box-shadow:0 2px 7px rgba(23,45,76,.05)}",
+      ".title-return:focus-visible{outline:2px solid var(--primary-color,#03a9d9);outline-offset:2px}",
       ".title strong{font-size:23px;font-weight:800;letter-spacing:.08em;line-height:1.05;color:var(--primary-text-color,#17191c)}",
       ".title small{margin-top:3px;font-size:14px;font-weight:560;line-height:1.2;letter-spacing:.01em;color:var(--secondary-text-color,#68737d);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}",
       ".shell-button{width:44px;min-width:44px;height:44px;min-height:44px;margin:auto;padding:0;border:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 72%,transparent);background:var(--card-background-color,#fff);border-radius:16px;display:grid;place-items:center;box-shadow:0 7px 20px rgba(23,45,76,.08)}",
@@ -1404,6 +1449,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".history-group{display:grid;gap:8px;padding:11px}.history-group>h2{padding:2px 3px 1px;font-size:18px}",
       ".history-group .history-card-host>ha-card{box-shadow:none;border:1px solid var(--divider-color,#dfe3e8);border-radius:15px;overflow:hidden}",
       ".history-loading{min-height:150px;padding:18px;border:1px solid var(--divider-color,#dfe3e8);border-radius:20px;background:var(--card-background-color,#fff);display:grid;place-items:center;color:var(--secondary-text-color,#68737d);font-size:13px}",
+      ".loading-page{min-height:100%;display:grid;grid-template-rows:minmax(420px,1fr) 124px auto;gap:12px}.loading-page>p{margin:0;text-align:center;color:var(--secondary-text-color,#68737d);font-size:13px;font-weight:600}.loading-skeleton{border:1px solid var(--divider-color,#dfe3e8);border-radius:24px;background:color-mix(in srgb,var(--primary-text-color,#17191c) 6%,var(--card-background-color,#fff))}.loading-scene{min-height:560px}.loading-line{min-height:124px}",
       ".flow{text-align:center;color:var(--primary-color,#03a9d9);font-size:12px;letter-spacing:.08em;padding:1px}",
       ".line-card{display:grid;grid-template-columns:1fr 145px;align-items:center;gap:10px}",
       ".line-focus{display:grid;gap:7px;text-align:center}",

@@ -50,6 +50,9 @@ jobs:
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node scripts/check-stable-dom.mjs
 
+      - name: Verify mandatory NikaS UI standard
+        run: python scripts/check-nikas-ui-standard.py
+
       - name: Verify version parity
         run: |
           python - <<'PY'
@@ -57,7 +60,7 @@ jobs:
           import re
           from pathlib import Path
 
-          expected = "0.6.1"
+          expected = "0.7.0"
           manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
           panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())
           panel_py = Path("custom_components/lider_voltage_control/panel.py").read_text()
