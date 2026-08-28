@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Renames the Home Assistant sidebar entry and the persistent Header title to `Электросеть`; LIDER remains the integration and equipment identity.
+- Locks the phone panel host to the visual viewport and composes Header, work viewport and Bottom Tab Bar as one three-row application grid.
+- Makes the work viewport the only scrolling surface and blocks scroll chaining into Home Assistant, preventing iOS elastic scroll from pulling either fixed menu upward.
+- Keeps the fixed chrome and short views at full shell height while preserving stable-DOM telemetry patches, cached tabs, safe areas and gesture-only zoom.
+- Adds CI guards that reject `100dvh` and independently fixed Header, viewport or Bottom Tab Bar layers.
+
 ## 0.7.1
 
 - Requires the one-shot source route and timestamp as a complete pair and rejects invalid, stale and future hand-offs before resolving the Header return route.

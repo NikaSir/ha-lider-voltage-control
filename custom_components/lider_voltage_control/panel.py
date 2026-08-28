@@ -11,12 +11,12 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 
 PANEL_ID = "lider"
-PANEL_TITLE = "LIDER"
+PANEL_TITLE = "Электросеть"
 PANEL_URL_PATH = "dashboard-lider"
 PANEL_PARENT_ROUTE = "/dashboard-infrastructure/overview"
 PANEL_ICON = "mdi:transmission-tower"
 PANEL_WEB_COMPONENT = "lider-voltage-control-panel"
-PANEL_UI_VERSION = "0.7.1"
+PANEL_UI_VERSION = "0.8.0"
 PANEL_TEMPLATE_VERSION = "1.9"
 PANEL_STATIC_URL = "/lider_voltage_control_panel"
 PANEL_STATIC_REGISTERED = "panel_static_registered"

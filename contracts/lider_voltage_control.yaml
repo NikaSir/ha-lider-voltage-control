@@ -2,8 +2,8 @@ api_version: nikas.home-assistant/lider-panel-contract/v1
 kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
-  title: LIDER
-  version: 0.7.1
+  title: Электросеть
+  version: 0.8.0
 spec:
   read_only: true
   rendering:
@@ -20,6 +20,9 @@ spec:
     cold_registry_completion: reconcile_current_view_only
     production_bundle: self_contained
     runtime_module_imports: false
+    phone_shell: fixed_host_three_row_grid
+    outer_document_scroll: false
+    work_viewport_scroll_chaining: false
   navigation:
     primary_tabs: [overview, before, after, history, diagnostics]
     bottom_tab_columns: 5

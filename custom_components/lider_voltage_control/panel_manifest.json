@@ -1,12 +1,12 @@
 {
   "id": "lider",
-  "title": "LIDER",
+  "title": "Электросеть",
   "path": "/dashboard-lider",
   "parent_route": "/dashboard-infrastructure/overview",
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.7.1",
+  "ui_version": "0.8.0",
   "template_version": "1.9",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -53,7 +53,10 @@
     "bottom_label_px": 12,
     "bottom_label_mobile_px": 12,
     "bottom_full_width": true,
-    "safe_area_once": true
+    "safe_area_once": true,
+    "phone_shell": "fixed_host_three_row_grid",
+    "outer_document_scroll": false,
+    "work_viewport_scroll_chaining": false
   },
   "overview": {
     "mobile_input_metrics": "two_stacked_rows",
