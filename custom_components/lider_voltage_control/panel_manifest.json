@@ -8,7 +8,7 @@
   "preferred_view": "overview",
   "ui_version": "0.6.1",
   "template_version": "1.0",
-  "ui_standard": "1.7",
+  "ui_standard": "1.8",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
     "mode": "self_contained_bundle",
@@ -45,6 +45,7 @@
     "bottom_tabs": ["overview", "before", "after", "history", "diagnostics"],
     "bottom_tabs_single_row": true,
     "bottom_tab_columns": 5,
+    "mobile_input_metrics": "two_stacked_rows",
     "bottom_tab_min_height_px": 58,
     "bottom_icon_px": 28,
     "bottom_label_px": 12,
