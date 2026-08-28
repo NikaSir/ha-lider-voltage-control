@@ -28,7 +28,7 @@ for (const marker of [
   'if (event.touches.length > 0) return',
   'sessionStorage.getItem(RETURN_ROUTE_KEY)',
   'window.history.pushState',
-  'this._tabButton("diagnostics", "mdi:stethoscope", "Диагностика")',
+  'this._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика")',
   'grid-template-columns:repeat(5,minmax(0,1fr))',
   '--mdc-icon-size:28px',
   '.tabs button small{display:block;max-width:100%;font-size:12px',
