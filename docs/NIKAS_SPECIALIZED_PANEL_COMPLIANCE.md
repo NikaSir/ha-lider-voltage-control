@@ -1,4 +1,4 @@
-# LIDER compliance with NikaS UI v1.7 / rule 1.17
+# LIDER compliance with NikaS UI v1.8 / Navigation Contract v1.0 / rule 1.17
 
 Version under review: integration/UI `0.7.0`.
 

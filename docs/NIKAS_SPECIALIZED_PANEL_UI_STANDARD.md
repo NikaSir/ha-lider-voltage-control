@@ -1,4 +1,4 @@
-# NikaS Specialized Panel UI Standard v1.7
+# NikaS Specialized Panel UI Standard v1.8
 
 **Status:** REQUIRED
 **Canonical source:** `NikaSir/ha-contract-generated-ui`
@@ -7,6 +7,7 @@
 **Reference visual implementation:** Stark SolarPower / UPS
 **Reference typography and status treatment:** LIDER
 **Reference Header title plaque:** LIDER
+**Required navigation companion:** `docs/NIKAS_PANEL_NAVIGATION_CONTRACT.md`
 
 This document supersedes every earlier shell, Header, zoom, scrolling and Bottom Tab Bar rule. Historical documents remain useful only where they do not conflict with this standard.
 
@@ -45,13 +46,18 @@ BOTTOM TAB BAR                              native scale
 ### Center title plaque — return to the source NikaS base panel
 
 - The geometrically centered two-line title is a persistent clickable plaque and the sole standard return control from a specialized panel to the NikaS base interface.
-- The first line is the current specialized-panel name. The second line contains only the interface version in the exact form `UI vX.Y.Z`; a device type, model, context label or other prefix/suffix on that line is prohibited.
-- The whole plaque is one semantic `button` with a minimum `44px` touch height. It has a visible plaque surface, visible `:focus-visible` state and pressed `:active` response, while retaining geometric centering between the side rails.
+- The first line is the current specialized-panel name. The second line is the interface version in the exact form `UI vX.Y.Z`.
+- The whole plaque is one semantic `button` and copies the LIDER reference geometry and tone exactly; it retains geometric centering between the side rails.
+- Default geometry: `justify-self:center`, `min-width:min(290px,100%)`, `max-width:100%`, `min-height:44px`, `padding:5px 14px`. On narrow phones it uses `min-width:0; width:100%; padding-inline:8px` so the plaque fills the available center grid column without moving the side rails.
+- Reference surface: `1px` border `color-mix(in srgb,var(--primary-color,#03a9d9) 24%,var(--divider-color,#dfe3e8))`, `16px` radius, background `color-mix(in srgb,var(--primary-color,#03a9d9) 5%,var(--card-background-color,#fff))`, and shadow `0 5px 16px rgba(23,45,76,.06)`.
+- Pressed state: background primary mix `13%`, border primary mix `42%`, shadow `0 2px 7px rgba(23,45,76,.05)`; an optional subtle `scale(.985)` response is allowed. Focus-visible uses a `2px` primary-color outline with `2px` offset.
+- The focus state and pressed response are mandatory and remain visibly distinct from the default state.
+- A transparent title, a plain text label without the LIDER surface, a white-only card surface, a wider `460px` desktop plaque forced into the phone Header, or a locally chosen integration color is non-conforming.
 - An arrow, chevron, a separate `Назад` label and `history.back()` are prohibited.
-- When a specialized panel is opened from `/dashboard-house`, `/dashboard-actions` or `/dashboard-infrastructure`, it returns to that same base panel. A permitted sub-route may be normalized to the configured canonical route of its base panel.
-- The base shell records the source route before or while opening the specialized panel. The common one-shot hand-off key is `sessionStorage["nikas.specialized.source_route.v1"]`; `return_to` or `from` query parameters may be used as an explicit hand-off.
-- The specialized panel captures and validates the route once, persists its accepted route for that panel/client, and does not recalculate it during telemetry updates. Only same-origin routes rooted at the three allowed NikaS base dashboards are accepted.
-- Capture precedence is: the first valid explicit route from `return_to` then `from`, one-shot session hand-off, saved route for that specialized panel, safe same-origin referrer, configured `parent_route`, then the repository-defined safe base-panel fallback. An invalid `return_to` must not suppress a valid `from`.
+- When a specialized panel is opened from `/dashboard-house-v11/home`, `/dashboard-actions/home` or `/dashboard-infrastructure/overview`, it returns to that same base panel. Permitted sub-routes are normalized according to the required navigation contract.
+- The base shell records the source route in the same click/keyboard handler, immediately before changing location to the specialized panel. Ambient shell synchronization and telemetry updates must not refresh the hand-off timestamp. The common one-shot hand-off key is `sessionStorage["nikas.specialized.source_route.v1"]`; `return_to` or `from` query parameters may be used as an explicit hand-off.
+- The specialized panel captures and validates the route once, persists its accepted route for that panel/client, and does not recalculate it during telemetry updates. Only same-origin routes rooted at `/dashboard-house-v11`, `/dashboard-actions` and `/dashboard-infrastructure` are accepted.
+- Capture precedence is: explicit `return_to`/`from`, one-shot session hand-off, saved route for that specialized panel, safe same-origin referrer, configured `parent_route`, then the repository-defined safe base-panel fallback.
 - Navigation is explicit Home Assistant navigation: `history.pushState()` followed by a `location-changed` event. Browser history is never the routing contract.
 - The title plaque, its accepted route and its click handler are mounted with the fixed Header and survive tab switches, polling, loss/recovery and every state-only patch.
 
@@ -177,8 +183,8 @@ Repository tests or static checks must verify:
 10. meaningful typography stays within `12–25px`, subject only to the documented schematic exception;
 11. routine telemetry cannot replace the shell, viewport, canvas, background or Bottom Tab Bar;
 12. an optional connection indicator, when requested, uses the canonical transport/freshness vocabulary and status-tinted plaque;
-13. the center title is a two-line `44px`+ semantic button, its second line is exactly `UI vX.Y.Z`, it has visible focus/pressed states, contains no arrow or separate Back label and retains geometric centering;
-14. source-route capture accepts only the three NikaS base dashboard roots, uses the common session hand-off, performs explicit HA navigation and contains no `history.back()`;
+13. the center title is a two-line `44px`+ semantic button, contains no arrow or separate Back label and retains geometric centering;
+14. source-route capture follows `NIKAS_PANEL_NAVIGATION_CONTRACT.md`, uses the three canonical base entry routes, writes the common session hand-off at outbound click/keyboard time, consumes it once, performs explicit HA navigation and contains no `history.back()`;
 15. JavaScript syntax, package validation, HACS and Hassfest pass.
 
 Each repository also maintains `docs/NIKAS_SPECIALIZED_PANEL_COMPLIANCE.md` (or an equivalent explicit record). Unimplemented runtime behavior is recorded as `GAP`, never assumed to pass from documentation alone.
@@ -193,7 +199,7 @@ Each repository also maintains `docs/NIKAS_SPECIALIZED_PANEL_COMPLIANCE.md` (or 
 - card activation does not become accidental pan;
 - Header, selector and Bottom Tab Bar remain stationary at every scale;
 - both Header buttons are visible matching plaques below Dynamic Island;
-- the centered title plaque shows the panel name and exact version-only `UI vX.Y.Z` second line, visibly responds to keyboard focus and press, returns to each of the three originating NikaS base panels and uses the configured safe fallback after a direct open;
+- the centered title plaque shows the panel name and exact `UI vX.Y.Z`, returns to each of the three originating NikaS base panels and uses the configured safe fallback after a direct open;
 - Bottom icons and labels match the Stark SolarPower visual scale;
 - integration/repository icon is present and recognizable in installed/distribution surfaces.
 - repeated telemetry, indicator transitions, tab changes and upward/downward scroll produce no full-screen flash or white frame;
@@ -210,15 +216,3 @@ Each repository also maintains `docs/NIKAS_SPECIALIZED_PANEL_COMPLIANCE.md` (or 
 - GitHub Releases are not used.
 - Automatic release tags are not used as a publication gate or update channel. An internal integration/UI version does not require a Git tag.
 - A pull request remains draft until automated checks pass and the real-phone acceptance items above are ready for user verification.
-
-## LIDER central title plaque reference
-
-The centered two-line Header title plaque uses the LIDER reference geometry and tone:
-
-- `justify-self:center`; `min-width:min(290px,100%)`; `max-width:100%`; `min-height:44px`; `padding:5px 14px`;
-- on narrow phones: `min-width:0; width:100%; padding-inline:8px`;
-- `1px` border with primary-color mix `24%`; `16px` radius; primary-color background mix `5%`; `0 5px 16px rgba(23,45,76,.06)` shadow;
-- pressed: background mix `13%`, border mix `42%`, `0 2px 7px rgba(23,45,76,.05)`; focus-visible: `2px` primary outline and `2px` offset.
-- The focus state and pressed response are mandatory and remain visibly distinct from the default state.
-
-A transparent/plain-text title, a white-only local variant, or an integration-specific color is not conforming.

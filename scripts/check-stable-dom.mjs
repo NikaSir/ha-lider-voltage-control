@@ -115,13 +115,13 @@ vm.createContext(context);
 vm.runInContext(source + "\nthis.Panel = LiderVoltageControlPanel; this.resolveReturnRoute = resolveReturnRoute;", context);
 
 context.window.location.href = "https://ha.local/dashboard-lider?return_to=https%3A%2F%2Fevil.example%2Fdashboard-house&from=%2Fdashboard-actions%2Foverview";
-if (context.resolveReturnRoute({}) !== "/dashboard-actions/overview") {
+if (context.resolveReturnRoute({}) !== "/dashboard-actions/home") {
   throw new Error("an invalid return_to must not suppress a valid from route");
 }
 context.window.location.href = "https://ha.local/dashboard-lider";
 
-session.set("nikas.lider.return_route.v1", "/dashboard-house/overview");
-if (context.resolveReturnRoute({}) !== "/dashboard-house/overview") {
+session.set("nikas.lider.return_route.v1", "/dashboard-house-v11/overview");
+if (context.resolveReturnRoute({}) !== "/dashboard-house-v11/home") {
   throw new Error("saved Header return route must survive a panel reload");
 }
 

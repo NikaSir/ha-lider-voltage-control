@@ -1,7 +1,9 @@
 {
-  "version": "1.7",
+  "version": "1.8",
   "standard_path": "docs/NIKAS_SPECIALIZED_PANEL_UI_STANDARD.md",
-  "standard_sha256": "8022b7232b1ceddbbca6b4754f5619d540f936af26e279cf4d45648bf979aeea",
+  "standard_sha256": "af41ee58956f0076519157c295f8e9b97f82c1e764fe64456680a1aeae0ba244",
+  "navigation_contract_path": "docs/NIKAS_PANEL_NAVIGATION_CONTRACT.md",
+  "navigation_contract_sha256": "b434169a733d5c40eb0155ccc1a0377354002caab6d2073801754ac5a367c37b",
   "role": "specialized",
   "runtime_files": [
     "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js",

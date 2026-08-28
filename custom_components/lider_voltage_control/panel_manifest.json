@@ -39,7 +39,7 @@
     "header_focus_visible": true,
     "header_pressed_response": true,
     "header_safe_default_route": "/dashboard-infrastructure/overview",
-    "header_allowed_base_routes": ["/dashboard-house", "/dashboard-actions", "/dashboard-infrastructure"],
+    "header_allowed_base_routes": ["/dashboard-house-v11/home", "/dashboard-actions/home", "/dashboard-infrastructure/overview"],
     "header_grid_px": [52, 0, 52],
     "header_button_px": 44,
     "header_icon_px": 25,

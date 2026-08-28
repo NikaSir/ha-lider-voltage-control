@@ -34,16 +34,13 @@ const STATUS_REFRESH_MS = 15_000;
 const LIDER_UI_VERSION = "0.7.0";
 const RETURN_ROUTE_KEY = "nikas.lider.return_route.v1";
 const SOURCE_ROUTE_KEY = "nikas.specialized.source_route.v1";
+const SOURCE_ROUTE_AT_KEY = "nikas.specialized.source_route_at.v1";
 const SAFE_DEFAULT_ROUTE = "/dashboard-infrastructure/overview";
-const SAFE_ROUTE_PREFIXES = [
-  "/dashboard-house",
-  "/dashboard-actions",
-  "/dashboard-infrastructure",
-];
+const SOURCE_ROUTE_TTL_MS = 30_000;
 const ROUTE_TOKENS = Object.freeze({
-  house: "/dashboard-house",
-  home: "/dashboard-house",
-  actions: "/dashboard-actions",
+  house: "/dashboard-house-v11/home",
+  home: "/dashboard-house-v11/home",
+  actions: "/dashboard-actions/home",
   infrastructure: SAFE_DEFAULT_ROUTE,
 });
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
@@ -70,10 +67,16 @@ function safeReturnRoute(value) {
   try {
     const url = new URL(candidate, window.location.origin);
     if (url.origin !== window.location.origin) return null;
-    const allowed = SAFE_ROUTE_PREFIXES.some((prefix) =>
-      url.pathname === prefix || url.pathname.startsWith(prefix + "/")
-    );
-    return allowed ? url.pathname + url.search + url.hash : null;
+    if (url.pathname === "/dashboard-house-v11" || url.pathname.startsWith("/dashboard-house-v11/")) {
+      return "/dashboard-house-v11/home";
+    }
+    if (url.pathname === "/dashboard-actions" || url.pathname.startsWith("/dashboard-actions/")) {
+      return "/dashboard-actions/home";
+    }
+    if (url.pathname === "/dashboard-infrastructure" || url.pathname.startsWith("/dashboard-infrastructure/")) {
+      return "/dashboard-infrastructure/overview";
+    }
+    return null;
   } catch (_err) {
     return null;
   }
@@ -87,8 +90,13 @@ function resolveReturnRoute(panel) {
   let handedOff = null;
   let saved = null;
   try {
-    handedOff = safeReturnRoute(sessionStorage.getItem(SOURCE_ROUTE_KEY));
+    const handedOffAtRaw = sessionStorage.getItem(SOURCE_ROUTE_AT_KEY);
+    const handedOffAt = Number(handedOffAtRaw);
+    const handoffIsFresh = handedOffAtRaw === null
+      || (Number.isFinite(handedOffAt) && Date.now() - handedOffAt <= SOURCE_ROUTE_TTL_MS);
+    handedOff = handoffIsFresh ? safeReturnRoute(sessionStorage.getItem(SOURCE_ROUTE_KEY)) : null;
     sessionStorage.removeItem(SOURCE_ROUTE_KEY);
+    sessionStorage.removeItem(SOURCE_ROUTE_AT_KEY);
     saved = safeReturnRoute(sessionStorage.getItem(RETURN_ROUTE_KEY));
   } catch (_err) {
     handedOff = null;
