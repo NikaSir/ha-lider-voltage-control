@@ -1,4 +1,4 @@
-# LIDER compliance with NikaS UI v1.7
+# LIDER compliance with NikaS UI v1.8 and navigation contract v1.0
 
 Version under review: integration/UI `0.6.1`.
 
@@ -11,10 +11,8 @@ Version under review: integration/UI `0.6.1`.
 | Gesture safety | PASS | Pinch waits for both fingers to lift and suppresses the following synthetic click. |
 | Zoom bounds and 100% native scroll | PASS | 75–200%, axis-aware clamping, 100% origin normalization and two-finger reset. |
 | Bottom navigation | PASS | Five equal destinations, 28 px MDI icons, 12 px labels, fixed outside the viewport. |
-| Mobile overview labels | PASS | At phone widths, full `Мощность` and `Напряжение` labels occupy separate compact rows; typography remains 12 px. |
-| Operational units | PASS | Latin `V/A/W/Hz` metadata is presented as `В/А/Вт/Гц`; raw diagnostics retain source metadata. |
 | Typography | PASS | Automated guard enforces the 12–25 px meaningful-text envelope. |
-| Header return | PASS | The semantic `LIDER / UI v0.6.1` title plaque has focus/pressed states; the first valid explicit route, one-shot hand-off, saved route, referrer, configured parent and fallback are bounded to the three NikaS base roots. Navigation is explicit and `history.back()` is rejected in the production bundle. |
+| Header return | PASS | Captured safe route is persisted and navigation is explicit; `history.back()` is rejected. |
 | Diagnostics completeness | PASS | All enabled state-bearing entities of the bound devices, raw attributes, timestamps and context. |
 | Autonomous frontend delivery | PASS | Deterministic self-contained production bundle with no runtime imports. |
 | Statistics grouping | PASS | `До стабилизаторов`, `После стабилизаторов`, then the non-interruptible line; generation/export excluded. |

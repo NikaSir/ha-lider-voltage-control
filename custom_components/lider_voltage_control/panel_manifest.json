@@ -36,7 +36,7 @@
     "header_history_back_allowed": false,
     "header_return_route_capture": ["return_to_or_from_query", "session_route_handoff", "saved_panel_route", "same_origin_referrer", "parent_route"],
     "header_safe_default_route": "/dashboard-infrastructure/overview",
-    "header_allowed_base_routes": ["/dashboard-house", "/dashboard-actions", "/dashboard-infrastructure"],
+    "header_allowed_base_routes": ["/dashboard-house-v11", "/dashboard-actions", "/dashboard-infrastructure"],
     "header_grid_px": [52, 0, 52],
     "header_button_px": 44,
     "header_icon_px": 25,
@@ -51,15 +51,6 @@
     "bottom_label_mobile_px": 12,
     "bottom_full_width": true,
     "safe_area_once": true
-  },
-  "overview": {
-    "mobile_input_metrics": "two_stacked_rows",
-    "mobile_input_labels": ["Мощность", "Напряжение"],
-    "phase_cards_aligned_by_center": true,
-    "flow_caption": "Сеть → LIDER → дом",
-    "localized_units": {"V": "В", "A": "А", "W": "Вт", "Hz": "Гц", "kWh": "kWh"},
-    "diagnostics_visible_label": "Диагн.",
-    "diagnostics_accessible_label": "Диагностика"
   },
   "zoom": {
     "viewport_count": 1,
