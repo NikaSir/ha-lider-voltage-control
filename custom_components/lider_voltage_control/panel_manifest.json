@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.9.1",
+  "ui_version": "0.9.2",
   "template_version": "1.9",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -76,13 +76,22 @@
     "equipment_model": "LIDER PS-7500W-30",
     "module_count": 3,
     "fills_work_viewport": true,
+    "hero_starts_at_header": true,
+    "rack_grounded_to_floor": true,
+    "connection_plaque": "canonical_s8_omni_geometry_compact_top_right_overlay",
     "mobile_input_metrics": "compact_phase_strip_plus_operational_rows",
     "phase_cards_aligned_by_center": true,
-    "connection_plaque": "canonical_s8_omni_geometry_top_right",
     "phase_cards_show_before_after_voltage_and_power": true,
     "localized_units": {"V": "В", "A": "А", "W": "Вт", "Hz": "Гц", "kWh": "kWh"},
     "diagnostics_visible_label": "Диагн.",
     "diagnostics_accessible_label": "Диагностика"
+  },
+  "phase_views": {
+    "layout": "three_phases_in_one_row",
+    "metrics_per_phase": ["voltage", "current", "power"],
+    "metric_direction": "vertical",
+    "after_metrics_discovery": "same_device_entity_registry_by_device_class_or_unit",
+    "missing_after_current_or_power": "explicit_no_data"
   },
   "zoom": {
     "viewport_count": 1,
