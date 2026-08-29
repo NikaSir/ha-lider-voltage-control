@@ -1,26 +1,34 @@
-api_version: nikas.home-assistant/lider-panel-contract/v1
+api_version: nikas.home-assistant/lider-panel-contract/v2
 kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.3
+  version: 0.9.0
 spec:
   read_only: true
+  standards:
+    ui: NikaS Specialized Panel UI Standard v1.9
+    navigation: NikaS Panel Navigation and Return Contract v1.1
+    engineering_knowledge: NIKAS_ENGINEERING_KNOWLEDGE_BASE.md
+    proven_patterns: NIKAS_PROVEN_INTEGRATION_PANEL_PATTERNS.md
+  architecture:
+    clean_rewrite: true
+    legacy_frontend_reused: false
+    layers: [DataAdapter, HistoryStore, ViewStore, LiderVoltageControlPanel]
+    data_to_dom: targeted_patch_only
+    views: lazy_create_cache_reattach
   rendering:
     stable_shell_dom: true
     shadow_root_inner_html: initial_mount_only
     telemetry_updates: patch_existing_nodes
     update_coalescing: one_animation_frame
-    status_updates: category_change_only
-    initial_state: fixed_shell_with_loading_skeleton
+    status_updates: targeted_patch_only
     unknown_unavailable: explicit_no_data
     preserve_on_update: [header, image, zoom_viewport, scroll, bottom_tab_bar]
     structural_render_during_scroll: false
-    visited_views: lazy_dom_cache
-    cold_registry_completion: reconcile_current_view_only
     production_bundle: self_contained
     runtime_module_imports: false
-    phone_shell: fixed_host_three_row_grid
+    phone_shell: three_row_grid
     outer_document_scroll: false
     work_viewport_scroll_chaining: false
   navigation:
@@ -28,36 +36,32 @@ spec:
     bottom_tab_columns: 5
     bottom_icon_px: 28
     bottom_label_px: 12
-    non_interruptible_line_locations: [overview, history, diagnostics]
     diagnostics_visible_label: Диагн.
     diagnostics_accessible_label: Диагностика
     return_route:
-      persisted_once: true
+      capture_once: true
       explicit_precedence: [return_to, from]
-      focus_visible: true
-      pressed_response: true
+      handoff_keys: [nikas.specialized.source_route.v1, nikas.specialized.source_route_at.v1]
+      handoff_max_age_ms: 30000
+      handoff_consumed_once: true
+      normalize_base_routes: true
       history_back_allowed: false
       safe_default: /dashboard-infrastructure/overview
   gestures:
     pinch_range_percent: [75, 200]
+    snap_to_100_percent: [97, 103]
     two_finger_double_tap_reset: true
-    wait_for_all_touches_to_end: true
+    one_finger_pan_above_100_percent_only: true
+    native_vertical_scroll_at_100_percent: true
+    persistent_per_client: true
     suppress_post_gesture_click: true
   equipment:
-    three_phase_assembly: three LIDER PS7500W-15 modules
-    phase_module: LIDER PS7500W-15
+    three_phase_assembly: three LIDER PS-7500W-30 modules
+    phase_module: LIDER PS-7500W-30
     module_count: 3
-    rack: LIDER 9-36
-    arrangement: vertically_stacked_on_communication_rack
+    rack: communication_rack_with_manual_phase_bypass
     bypass: manual_per_phase
-    apparent_power_total_kva: 22.5
-    active_power_total_kw: 18
   overview:
-    fills_work_viewport: true
-    vertical_scroll_at_100_percent: false
-    mobile_input_metrics: two_stacked_rows
-    metric_order: [power, voltage]
-    phase_cards_aligned_by_center: true
     flow_caption: Сеть → LIDER → дом
     localized_units: {V: В, A: А, W: Вт, Hz: Гц, kWh: kWh}
   points:
@@ -90,10 +94,6 @@ spec:
         phase_a: sensor.socket_zb_2_voltage
         phase_b: sensor.socket_zb_3_voltage
         phase_c: sensor.socket_zb_31_voltage
-      temporary_sources:
-        phase_a: bedroom_socket
-        phase_b: massage_chair
-        phase_c: veranda_heater
       binding_status: temporary_confirmed_control_points
       thresholds_volts: &quality_thresholds
         unavailable: unknown_or_unavailable
@@ -103,10 +103,11 @@ spec:
         normal: "210 <= U <= 230"
     non_interruptible_line:
       label: Неотключаемая линия
-      entities:
-        input_voltage_unique_id: W0035313411160_input_voltage
+      discovery:
+        unique_id: W0035313411160_input_voltage
         source_device: UPS Котёл
         source_integration: stark_solarpower
+        entity_id_policy: discover_from_entity_registry
       thresholds_volts: *quality_thresholds
   semantics:
     unknown_is_healthy: false
@@ -125,16 +126,16 @@ spec:
       "off": Нет связи
       unknown_or_unavailable: Нет данных
     telemetry_freshness:
-      source_timestamp: last_reported
-      fallback_timestamp: last_updated
+      source_timestamp: last_updated
       stale_after_poll_periods: 3
       default_poll_period_seconds: 30
       current: Данные актуальны
       stale: Данные устарели
       unknown: Нет данных
-      preserve_last_successful_snapshot: true
   history:
-    provider: home_assistant_recorder_rest
+    provider: home_assistant_history
+    primary_transport: websocket_history_during_period
+    fallback_transport: recorder_rest
     rendering: autonomous_svg
     lovelace_helpers_required: false
     single_flight_per_period: true
@@ -143,21 +144,19 @@ spec:
     request_concurrency: 2
     request_timeout_seconds: 60
     significant_changes_only: true
+    minimal_response: true
+    no_attributes: true
     periods: [24h, 7d, 30d, 12m]
     metrics: [voltage, current, power]
     excluded_metrics: [generation, produced_energy, export_energy, reverse_energy]
-    hours_to_show:
-      24h: 24
-      7d: 168
-      30d: 720
-      12m: 8760
+    terminal_states: [ready, no_records, missing_entity, recorder_unavailable]
   diagnostics:
     view: diagnostics
     include_all_enabled_state_entities_of_bound_devices: true
     excluded_command_only_domains: [automation, button, event, scene, script]
-    raw_generation_fields_visible: true
-    show: [state, attributes, last_changed, last_updated, last_reported, context]
-    interaction: native_more_info_only
+    show: [state, attributes, last_changed, last_updated, context]
+    update_policy: keyed_entity_cards
+    interaction: native_more_info
   artwork:
     composition: separate_layers
     room_background: frontend/assets/lider-room-background-v1.webp

@@ -6,23 +6,34 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.8.3",
+  "ui_version": "0.9.0",
   "template_version": "1.9",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
     "mode": "self_contained_bundle",
+    "clean_rewrite": true,
     "source_module": "lider-voltage-control-panel-core.js",
     "build_script": "scripts/build-frontend-bundle.mjs",
+    "production_equals_validated_source": true,
     "runtime_previous_version_imports": false,
     "hero_composition": "separate_room_and_equipment_layers"
+  },
+  "architecture": {
+    "shell": "LiderVoltageControlPanel",
+    "data_adapter": "DataAdapter",
+    "history_store": "HistoryStore",
+    "view_store": "ViewStore",
+    "state_to_dom_policy": "targeted_patch_only",
+    "view_lifecycle": "lazy_create_cache_reattach",
+    "structural_keys": "never_telemetry_age"
   },
   "rendering": {
     "stable_shell_dom": true,
     "shadow_root_inner_html": "initial_mount_only",
     "telemetry_updates": "patch_existing_nodes",
-    "diagnostics_updates": "reconcile_working_view_only",
-    "status_updates": "category_change_only",
-    "initial_state": "fixed_shell_with_loading_skeleton",
+    "diagnostics_updates": "keyed_entity_cards",
+    "status_updates": "targeted_patch_only",
+    "initial_state": "fixed_shell_then_first_view",
     "unknown_unavailable": "explicit_no_data",
     "hass_updates": "coalesced_to_one_animation_frame",
     "visited_views": "lazy_dom_cache_and_reattach_same_subtree",
@@ -34,8 +45,11 @@
     "header_center_action": "return_to_source_base_panel",
     "header_center_lines": ["title", "ui_version"],
     "header_history_back_allowed": false,
-    "header_return_route_capture": ["first_valid_return_to_then_from", "session_route_handoff", "saved_panel_route", "same_origin_referrer", "parent_route"],
+    "header_return_route_capture": ["first_valid_return_to_then_from", "paired_session_route_handoff", "saved_panel_route", "same_origin_referrer", "parent_route"],
     "header_return_route_capture_once": true,
+    "header_handoff_timestamp_required": true,
+    "header_handoff_max_age_ms": 30000,
+    "header_handoff_consumed_once": true,
     "header_focus_visible": true,
     "header_pressed_response": true,
     "header_safe_default_route": "/dashboard-infrastructure/overview",
@@ -48,7 +62,7 @@
     "bottom_tabs": ["overview", "before", "after", "history", "diagnostics"],
     "bottom_tabs_single_row": true,
     "bottom_tab_columns": 5,
-    "bottom_tab_min_height_px": 58,
+    "bottom_tab_min_height_px": 52,
     "bottom_icon_px": 28,
     "bottom_label_px": 12,
     "bottom_label_mobile_px": 12,
@@ -59,10 +73,10 @@
     "work_viewport_scroll_chaining": false
   },
   "overview": {
+    "equipment_model": "LIDER PS-7500W-30",
+    "module_count": 3,
     "fills_work_viewport": true,
-    "vertical_scroll_at_100_percent": false,
-    "mobile_input_metrics": "two_stacked_rows",
-    "mobile_input_labels": ["Мощность", "Напряжение"],
+    "mobile_input_metrics": "compact_phase_strip_plus_operational_rows",
     "phase_cards_aligned_by_center": true,
     "flow_caption": "Сеть → LIDER → дом",
     "localized_units": {"V": "В", "A": "А", "W": "Вт", "Hz": "Гц", "kWh": "kWh"},
@@ -78,14 +92,18 @@
     "reset": "two_finger_double_tap",
     "snap_percent": [97, 103],
     "persistent": true,
+    "storage_scope": "panel_per_client",
     "native_vertical_scroll_at_100_percent": true,
+    "one_finger_pan": "only_above_100_percent",
     "pan_only_when_scaled_content_overflows": true,
     "bounded_to_content_edges": true,
     "post_gesture_click_suppression": true,
     "wait_for_all_touches_to_end": true
   },
   "history": {
-    "provider": "home_assistant_recorder_rest",
+    "provider": "home_assistant_history",
+    "primary_transport": "websocket_history_during_period",
+    "fallback_transport": "recorder_rest",
     "rendering": "autonomous_svg",
     "lovelace_helpers_required": false,
     "single_flight_per_period": true,
@@ -94,10 +112,13 @@
     "request_concurrency": 2,
     "request_timeout_seconds": 60,
     "significant_changes_only": true,
+    "minimal_response": true,
+    "no_attributes": true,
     "periods": ["24h", "7d", "30d", "12m"],
     "metrics": ["voltage", "current", "power"],
     "scope": ["before_stabilizers", "after_stabilizers", "non_interruptible_line"],
-    "excluded_metrics": ["generation", "produced_energy", "export_energy", "reverse_energy"]
+    "excluded_metrics": ["generation", "produced_energy", "export_energy", "reverse_energy"],
+    "terminal_states": ["ready", "no_records", "missing_entity", "recorder_unavailable"]
   },
   "diagnostics": {
     "view": "diagnostics",
@@ -107,6 +128,7 @@
     "show_state_timestamps": true,
     "show_context": true,
     "filter_generation_entities": false,
+    "update_policy": "keyed_entity_cards",
     "entity_click": "hass-more-info"
   },
   "runtime_contract": {
@@ -121,6 +143,7 @@
     "telemetry_states": ["current", "stale", "unknown"],
     "stale_after_poll_periods": 3,
     "default_poll_period_seconds": 30,
-    "preserve_last_successful_snapshot": true
+    "freshness_patch_period_seconds": 15,
+    "preserve_last_successful_snapshot": false
   }
 }
