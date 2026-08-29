@@ -7,20 +7,19 @@
   "navigation_contract_sha256": "c87dc760c0900701f6a807a35aba40e790f68f52c39f4579583598f697997e52",
   "role": "specialized",
   "artifact_kind": "production",
-  "runtime_files": [
-    "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js"
-  ],
+  "runtime_files": ["custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js"],
   "production_entrypoint": "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js",
   "build_source_files": [
     "scripts/build-frontend-bundle.mjs",
     "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js"
   ],
-  "ui_version": "0.8.3",
+  "ui_version": "0.9.0",
   "web_component": "lider-voltage-control-panel",
   "bundle_contract": {
     "autonomous": true,
     "runtime_imports": false,
     "deterministic": true,
+    "production_equals_validated_source": true,
     "cache_busting": "ui_version"
   },
   "data_truth": {
@@ -32,18 +31,24 @@
     "forbidden_command_markers": [".callService("]
   },
   "header_return": {
-    "button_marker": "class=\"title title-return\"",
+    "button_marker": "class=\"title-plaque\"",
     "version_marker": "<small>UI v",
-    "focus_marker": ".title-return:focus-visible",
-    "pressed_marker": ".title-return:active",
-    "explicit_precedence_marker": "[\"return_to\", \"from\"]",
-    "capture_once_marker": "this._returnRoute = resolveReturnRoute(this)",
-    "timestamp_required_marker": "handedOffRaw !== null",
-    "future_timestamp_rejection_marker": "handedOffAge >= 0"
+    "focus_marker": ".title-plaque:focus-visible",
+    "pressed_marker": ".title-plaque:active",
+    "explicit_precedence_marker": "params.get(\"return_to\"), params.get(\"from\")",
+    "capture_once_marker": "this._captureReturnRoute()",
+    "timestamp_required_marker": "SOURCE_ROUTE_AT_KEY",
+    "future_timestamp_rejection_marker": "age >= 0",
+    "one_shot_marker": "sessionStorage.removeItem(SOURCE_ROUTE_AT_KEY)"
   },
-  "forbidden_runtime_markers": [
-    "history.back("
-  ],
+  "rendering_contract": {
+    "shell_mounts_once": true,
+    "hass_updates": "requestAnimationFrame_targeted_patch",
+    "view_cache": "ViewStore",
+    "history_cache": "HistoryStore",
+    "diagnostics": "keyed_entity_cards"
+  },
+  "forbidden_runtime_markers": ["history.back(", "100dvh", "window.loadCardHelpers"],
   "title_plaque_reference": {
     "implementation": "LIDER",
     "min_width": "min(290px,100%)",
