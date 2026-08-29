@@ -33,8 +33,9 @@ const DEFAULT_POLL_PERIOD_MS = 30_000;
 const STALE_PERIOD_MULTIPLIER = 3;
 const STATUS_REFRESH_MS = 15_000;
 const HISTORY_MAX_POINTS_PER_SERIES = 360;
+const HISTORY_REQUEST_TIMEOUT_MS = 30_000;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
-const LIDER_UI_VERSION = "0.8.1";
+const LIDER_UI_VERSION = "0.8.2";
 const PANEL_TITLE = "Электросеть";
 const RETURN_ROUTE_KEY = "nikas.lider.return_route.v1";
 const SOURCE_ROUTE_KEY = "nikas.specialized.source_route.v1";
@@ -154,6 +155,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._historyPeriod = localStorage.getItem(HISTORY_PERIOD_KEY) || "24h";
     this._historyCards = [];
     this._historyMountToken = 0;
+    this._historyLoadingKey = null;
     this._telemetrySnapshot = this._loadTelemetrySnapshot();
     this._statusTimer = null;
     this._renderedView = null;
@@ -338,6 +340,18 @@ class LiderVoltageControlPanel extends HTMLElement {
       this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
     });
     this.shadowRoot.querySelector(".refresh").addEventListener("click", () => {
+      if (this._view === "history") {
+        this._historyMountedPeriod = null;
+        this._historyLoadingKey = null;
+        this._canvas.querySelectorAll("[data-history-card]").forEach((host) => {
+          const loading = document.createElement("div");
+          loading.className = "history-loading";
+          loading.textContent = "Загрузка истории…";
+          host.replaceChildren(loading);
+        });
+        this._mountHistoryCards();
+        return;
+      }
       this._queueLiveUpdate();
     });
     this.shadowRoot.querySelector(".title-return").addEventListener("click", () => navigateHome(this));
@@ -462,7 +476,8 @@ class LiderVoltageControlPanel extends HTMLElement {
     if (this._loading) return;
     if (this._view === "history") {
       if (this._registryLoaded &&
-          (this._historyMountedPeriod !== this._historyPeriod || !this._historyCards.length)) {
+          this._historyMountedPeriod !== this._historyPeriod &&
+          this._historyLoadingKey !== this._historyPeriod) {
         this._mountHistoryCards();
         return;
       }
@@ -564,6 +579,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   _updateHistoryPeriod() {
     if (this._view !== "history") return;
     this._historyMountedPeriod = null;
+    this._historyLoadingKey = null;
     this._historyCards = [];
     const labels = { "24h": "24 часа", "7d": "7 дней", "30d": "30 дней", "12m": "12 месяцев" };
     this._canvas.querySelectorAll("[data-history-period]").forEach((button) => {
@@ -743,6 +759,9 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   async _mountHistoryCards() {
     if (this._view !== "history" || !this._registryLoaded) return;
+    const loadKey = this._historyPeriod;
+    if (this._historyLoadingKey === loadKey) return;
+    this._historyLoadingKey = loadKey;
     const mountToken = ++this._historyMountToken;
     const period = {
       "24h": { hours: 24 },
@@ -762,7 +781,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       const end = new Date();
       const start = new Date(end.getTime() - period.hours * 3_600_000);
       const historyPath = this._historyApiPath(start, end, entityIds);
-      const history = await this._hass.callApi("get", historyPath);
+      const history = await this._historyRequest(historyPath);
       if (this._view !== "history" || mountToken !== this._historyMountToken) return;
       const seriesByEntity = this._historySeriesByEntity(history);
       this._historyCards = [];
@@ -775,14 +794,35 @@ class LiderVoltageControlPanel extends HTMLElement {
         host.replaceChildren(template.content.cloneNode(true));
         this._historyCards.push(host);
       }
-      this._historyMountedPeriod = this._historyPeriod;
+      this._historyMountedPeriod = loadKey;
       this._canvas.querySelectorAll(".history-loading").forEach((node) => {
         node.textContent = "Нет данных";
       });
     } catch (_err) {
+      if (this._view !== "history" || mountToken !== this._historyMountToken) return;
+      this._historyMountedPeriod = loadKey;
       this._canvas.querySelectorAll(".history-loading").forEach((node) => {
         node.textContent = "История Recorder недоступна";
       });
+    } finally {
+      if (mountToken === this._historyMountToken && this._historyLoadingKey === loadKey) {
+        this._historyLoadingKey = null;
+      }
+    }
+  }
+
+  async _historyRequest(historyPath) {
+    let timeoutId = null;
+    try {
+      return await Promise.race([
+        this._hass.callApi("get", historyPath),
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error("Recorder history timeout")),
+            HISTORY_REQUEST_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== null) clearTimeout(timeoutId);
     }
   }
 
@@ -790,7 +830,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     return "history/period/" + encodeURIComponent(start.toISOString()) +
       "?end_time=" + encodeURIComponent(end.toISOString()) +
       "&filter_entity_id=" + encodeURIComponent(entityIds.join(",")) +
-      "&minimal_response&no_attributes";
+      "&minimal_response&no_attributes&significant_changes_only";
   }
 
   _historySeriesByEntity(history) {

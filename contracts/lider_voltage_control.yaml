@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.1
+  version: 0.8.2
 spec:
   read_only: true
   rendering:
@@ -137,6 +137,9 @@ spec:
     provider: home_assistant_recorder_rest
     rendering: autonomous_svg
     lovelace_helpers_required: false
+    single_flight_per_period: true
+    request_timeout_seconds: 30
+    significant_changes_only: true
     periods: [24h, 7d, 30d, 12m]
     metrics: [voltage, current, power]
     excluded_metrics: [generation, produced_energy, export_energy, reverse_energy]

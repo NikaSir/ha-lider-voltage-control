@@ -19,7 +19,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.1"',
+  'const LIDER_UI_VERSION = "0.8.2"',
   'const PANEL_TITLE = "Электросеть"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
@@ -62,7 +62,10 @@ for (const marker of [
   '.overview-page .installation{min-height:0;aspect-ratio:auto}',
   '.tabs{position:relative;',
   'this._hass.callApi("get", historyPath)',
-  '&minimal_response&no_attributes',
+  '&minimal_response&no_attributes&significant_changes_only',
+  'this._historyLoadingKey === loadKey',
+  'mountToken === this._historyMountToken',
+  'HISTORY_REQUEST_TIMEOUT_MS = 30_000',
   'class="history-direct-card"',
 ]) {
   if (!bundle.includes(marker)) throw new Error(`required UI contract marker is missing: ${marker}`);
@@ -273,6 +276,52 @@ if (!graphHtml.includes('class="history-direct-card"') || !graphHtml.includes("<
     !graphHtml.includes("Фаза A") || !graphHtml.includes("В")) {
   throw new Error("autonomous Recorder graph does not expose its factual series");
 }
+
+const singleFlightHistory = new context.Panel();
+singleFlightHistory._view = "history";
+singleFlightHistory._registryLoaded = true;
+singleFlightHistory._historyPeriod = "24h";
+singleFlightHistory._canvas = {
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+singleFlightHistory._historyCardConfigs = () => ({
+  "before-voltage": {
+    title: "Напряжение",
+    entities: [{ entity: "sensor.power_monitor_voltage_a", name: "Фаза A" }],
+  },
+});
+let recorderCalls = 0;
+let resolveRecorder;
+singleFlightHistory._hass = {
+  callApi: () => {
+    recorderCalls += 1;
+    return new Promise((resolve) => { resolveRecorder = resolve; });
+  },
+};
+const firstHistoryLoad = singleFlightHistory._mountHistoryCards();
+const duplicateHistoryLoad = singleFlightHistory._mountHistoryCards();
+if (recorderCalls !== 1 || singleFlightHistory._historyLoadingKey !== "24h") {
+  throw new Error("telemetry must not start a duplicate Recorder request for the active period");
+}
+resolveRecorder([]);
+await Promise.all([firstHistoryLoad, duplicateHistoryLoad]);
+if (singleFlightHistory._historyMountedPeriod !== "24h" ||
+    singleFlightHistory._historyLoadingKey !== null) {
+  throw new Error("a completed Recorder request must settle the active period exactly once");
+}
+
+const timeoutHistory = new context.Panel();
+timeoutHistory._hass = { callApi: () => new Promise(() => {}) };
+context.setTimeout = (callback) => { callback(); return 9; };
+let historyTimedOut = false;
+try {
+  await timeoutHistory._historyRequest("history/period/test");
+} catch (error) {
+  historyTimedOut = error.message === "Recorder history timeout";
+}
+if (!historyTimedOut) throw new Error("Recorder history must leave loading state after its timeout");
+context.setTimeout = () => 1;
 
 if (panel._worst(["unavailable", "emergency", "normal"]) !== "emergency") {
   throw new Error("known emergency must not be hidden by an unavailable phase");

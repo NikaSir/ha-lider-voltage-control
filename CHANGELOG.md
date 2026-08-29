@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2
+
+- Prevents telemetry updates from starting overlapping Recorder history requests for the same period and invalidating every earlier response.
+- Adds a 30-second terminal timeout so history cards cannot remain in `Загрузка истории…` indefinitely.
+- Requests only significant state changes in addition to the existing minimal/no-attributes response, reducing Recorder payload and phone rendering work.
+- Keeps an explicit refresh path for retrying the active statistics period without rebuilding the panel shell.
+
 ## 0.8.1
 
 - Replaces the unavailable `window.loadCardHelpers()` dependency in the integration-owned custom panel with the supported authenticated `hass.callApi()` frontend method.

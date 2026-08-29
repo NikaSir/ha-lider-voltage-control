@@ -1,6 +1,6 @@
 # LIDER compliance with NikaS UI v1.9 / Navigation Contract v1.1 / rule 1.17
 
-Version under review: integration/UI `0.8.1`.
+Version under review: integration/UI `0.8.2`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
@@ -26,9 +26,10 @@ Version under review: integration/UI `0.8.1`.
 | Diagnostics completeness | PASS | All enabled state-bearing entities of the bound devices, raw attributes, timestamps and context. |
 | Autonomous frontend delivery | PASS | Deterministic self-contained production bundle with no runtime imports. |
 | Statistics grouping | PASS | `До стабилизаторов`, `После стабилизаторов`, then the non-interruptible line; generation/export excluded. History uses authenticated Recorder REST data and autonomous SVG rather than unavailable Lovelace-only helpers. |
+| Statistics request lifecycle | PASS | One Recorder request per active period may be in flight; telemetry cannot restart it, a 30-second timeout is terminal, and Header refresh explicitly retries the period. |
 | Repository checks | PASS | Local syntax, version parity, bundle, contract and stable-DOM checks pass; the publication PR must repeat them. |
 | HACS/Hassfest | PENDING | Must pass on the publication PR and merge commit. |
 | iPhone Pro Max portrait shell acceptance | PASS | User accepted v0.8.0 on a real phone: fixed chrome, native/inertial work scrolling, short views, ten tab switches, pinch/reset and telemetry updates all passed without movement, white frames or flicker. |
-| Recorder history phone acceptance | GAP | v0.8.1 must confirm that every available 24h/7d/30d/12m series renders from Recorder after HACS installation. |
+| Recorder history phone acceptance | GAP | v0.8.2 must confirm that every available 24h/7d/30d/12m series either renders or reaches an explicit Recorder/no-records state without remaining in `Загрузка истории…`. |
 
 The remaining phone GAP is limited to the new Recorder graph path. The fixed shell and interaction baseline do not require repeat redesign; regression acceptance still checks that opening and changing history periods leaves Header, Bottom Tab Bar, zoom and telemetry updates stable.
