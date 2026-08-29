@@ -32,9 +32,10 @@ const DEFAULT_POLL_PERIOD_MS = 30_000;
 const STALE_PERIOD_MULTIPLIER = 3;
 const STATUS_REFRESH_MS = 15_000;
 const HISTORY_MAX_POINTS_PER_SERIES = 360;
-const HISTORY_REQUEST_TIMEOUT_MS = 30_000;
+const HISTORY_REQUEST_TIMEOUT_MS = 60_000;
+const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
-const LIDER_UI_VERSION = "0.8.2";
+const LIDER_UI_VERSION = "0.8.3";
 const PANEL_TITLE = "Электросеть";
 const RETURN_ROUTE_KEY = "nikas.lider.return_route.v1";
 const SOURCE_ROUTE_KEY = "nikas.specialized.source_route.v1";
@@ -155,6 +156,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._historyCards = [];
     this._historyMountToken = 0;
     this._historyLoadingKey = null;
+    this._historyLoads = new Map();
     this._telemetrySnapshot = this._loadTelemetrySnapshot();
     this._statusTimer = null;
     this._renderedView = null;
@@ -295,6 +297,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     } finally {
       this._registryLoaded = true;
       this._registryLoading = false;
+      this._historyLoads.clear();
       this._historyMountedPeriod = null;
       this._queueLiveUpdate();
     }
@@ -340,15 +343,7 @@ class LiderVoltageControlPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector(".refresh").addEventListener("click", () => {
       if (this._view === "history") {
-        this._historyMountedPeriod = null;
-        this._historyLoadingKey = null;
-        this._canvas.querySelectorAll("[data-history-card]").forEach((host) => {
-          const loading = document.createElement("div");
-          loading.className = "history-loading";
-          loading.textContent = "Загрузка истории…";
-          host.replaceChildren(loading);
-        });
-        this._mountHistoryCards();
+        this._reloadHistoryPeriod();
         return;
       }
       this._queueLiveUpdate();
@@ -577,6 +572,7 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _updateHistoryPeriod() {
     if (this._view !== "history") return;
+    this._historyMountToken += 1;
     this._historyMountedPeriod = null;
     this._historyLoadingKey = null;
     this._historyCards = [];
@@ -593,6 +589,12 @@ class LiderVoltageControlPanel extends HTMLElement {
       host.replaceChildren(loading);
     });
     this._mountHistoryCards();
+  }
+
+  _reloadHistoryPeriod() {
+    if (this._view !== "history") return;
+    this._historyLoads.delete(this._historyPeriod);
+    this._updateHistoryPeriod();
   }
 
   _overview() {
@@ -759,8 +761,6 @@ class LiderVoltageControlPanel extends HTMLElement {
   async _mountHistoryCards() {
     if (this._view !== "history" || !this._registryLoaded) return;
     const loadKey = this._historyPeriod;
-    if (this._historyLoadingKey === loadKey) return;
-    this._historyLoadingKey = loadKey;
     const mountToken = ++this._historyMountToken;
     const period = {
       "24h": { hours: 24 },
@@ -773,30 +773,18 @@ class LiderVoltageControlPanel extends HTMLElement {
         throw new Error("Home Assistant callApi is unavailable");
       }
       const configs = this._historyCardConfigs(period);
-      const entityIds = [...new Set(Object.values(configs)
-        .flatMap((config) => config.entities.map((entry) => entry.entity))
-        .filter(Boolean))];
-      if (!entityIds.length) throw new Error("No history entities are available");
-      const end = new Date();
-      const start = new Date(end.getTime() - period.hours * 3_600_000);
-      const historyPath = this._historyApiPath(start, end, entityIds);
-      const history = await this._historyRequest(historyPath);
-      if (this._view !== "history" || mountToken !== this._historyMountToken) return;
-      const seriesByEntity = this._historySeriesByEntity(history);
-      this._historyCards = [];
-      for (const [id, config] of Object.entries(configs)) {
-        if (this._view !== "history" || mountToken !== this._historyMountToken) return;
-        const host = this._canvas.querySelector('[data-history-card="' + id + '"]');
-        if (!host) continue;
-        const template = document.createElement("template");
-        template.innerHTML = this._historyGraphHtml(config, seriesByEntity, start, end);
-        host.replaceChildren(template.content.cloneNode(true));
-        this._historyCards.push(host);
+      if (!Object.keys(configs).length) throw new Error("No history entities are available");
+      let load = this._historyLoads.get(loadKey);
+      if (!load) {
+        load = this._startHistoryLoad(loadKey, period, configs);
+        this._historyLoads.set(loadKey, load);
       }
-      this._historyMountedPeriod = loadKey;
-      this._canvas.querySelectorAll(".history-loading").forEach((node) => {
-        node.textContent = "Нет данных";
-      });
+      this._historyLoadingKey = load.status === "loading" ? loadKey : null;
+      this._renderHistoryLoad(load, mountToken);
+      await load.promise;
+      if (this._view !== "history" || this._historyPeriod !== loadKey ||
+          mountToken !== this._historyMountToken) return;
+      this._renderHistoryLoad(load, mountToken);
     } catch (_err) {
       if (this._view !== "history" || mountToken !== this._historyMountToken) return;
       this._historyMountedPeriod = loadKey;
@@ -808,6 +796,77 @@ class LiderVoltageControlPanel extends HTMLElement {
         this._historyLoadingKey = null;
       }
     }
+  }
+
+  _startHistoryLoad(loadKey, period, configs) {
+    const end = new Date();
+    const start = new Date(end.getTime() - period.hours * 3_600_000);
+    const entries = Object.entries(configs);
+    const load = {
+      key: loadKey,
+      start,
+      end,
+      configs,
+      cards: Object.fromEntries(entries.map(([id]) => [id, { status: "pending" }])),
+      seriesByEntity: {},
+      status: "loading",
+      promise: null,
+    };
+    let nextIndex = 0;
+    const worker = async () => {
+      while (nextIndex < entries.length) {
+        const [id, config] = entries[nextIndex++];
+        const card = load.cards[id];
+        card.status = "loading";
+        this._renderHistoryLoad(load);
+        try {
+          const entityIds = [...new Set(config.entities.map((entry) => entry.entity).filter(Boolean))];
+          const historyPath = this._historyApiPath(start, end, entityIds);
+          const series = this._historySeriesByEntity(await this._historyRequest(historyPath));
+          Object.assign(load.seriesByEntity, series);
+          card.status = "ready";
+        } catch (_err) {
+          card.status = "error";
+        }
+        this._renderHistoryLoad(load);
+      }
+    };
+    const workerCount = Math.min(HISTORY_REQUEST_CONCURRENCY, entries.length);
+    load.promise = Promise.all(Array.from({ length: workerCount }, () => worker())).then(() => {
+      load.status = "complete";
+      if (this._historyLoads.get(loadKey) === load && this._historyPeriod === loadKey) {
+        this._historyLoadingKey = null;
+        this._historyMountedPeriod = loadKey;
+        this._renderHistoryLoad(load);
+      }
+      return load;
+    });
+    return load;
+  }
+
+  _renderHistoryLoad(load, mountToken = this._historyMountToken) {
+    if (this._view !== "history" || this._historyPeriod !== load.key ||
+        this._historyLoads.get(load.key) !== load ||
+        mountToken !== this._historyMountToken || !this._canvas) return;
+    const hosts = [];
+    for (const [id, config] of Object.entries(load.configs)) {
+      const host = this._canvas.querySelector('[data-history-card="' + id + '"]');
+      if (!host) continue;
+      const status = load.cards[id]?.status;
+      const template = document.createElement("template");
+      if (status === "ready") {
+        template.innerHTML = this._historyGraphHtml(
+          config, load.seriesByEntity, load.start, load.end);
+      } else {
+        template.innerHTML = '<div class="history-loading">' +
+          (status === "error" ? "История Recorder недоступна" : "Загрузка истории…") +
+          '</div>';
+      }
+      host.replaceChildren(template.content.cloneNode(true));
+      hosts.push(host);
+    }
+    this._historyCards = hosts;
+    if (load.status === "complete") this._historyMountedPeriod = load.key;
   }
 
   async _historyRequest(historyPath) {

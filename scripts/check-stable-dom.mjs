@@ -19,7 +19,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.2"',
+  'const LIDER_UI_VERSION = "0.8.3"',
   'const PANEL_TITLE = "Электросеть"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
@@ -65,7 +65,10 @@ for (const marker of [
   '&minimal_response&no_attributes&significant_changes_only',
   'this._historyLoadingKey === loadKey',
   'mountToken === this._historyMountToken',
-  'HISTORY_REQUEST_TIMEOUT_MS = 30_000',
+  'HISTORY_REQUEST_TIMEOUT_MS = 60_000',
+  'HISTORY_REQUEST_CONCURRENCY = 2',
+  'this._historyLoads = new Map()',
+  'this._historyLoads.get(loadKey) === load',
   'class="history-direct-card"',
 ]) {
   if (!bundle.includes(marker)) throw new Error(`required UI contract marker is missing: ${marker}`);
@@ -309,6 +312,84 @@ await Promise.all([firstHistoryLoad, duplicateHistoryLoad]);
 if (singleFlightHistory._historyMountedPeriod !== "24h" ||
     singleFlightHistory._historyLoadingKey !== null) {
   throw new Error("a completed Recorder request must settle the active period exactly once");
+}
+
+const concurrencyHistory = new context.Panel();
+concurrencyHistory._view = "history";
+concurrencyHistory._historyPeriod = "7d";
+concurrencyHistory._canvas = { querySelector: () => null };
+const concurrencyPending = [];
+let concurrentRecorderCalls = 0;
+concurrencyHistory._hass = {
+  callApi: () => {
+    concurrentRecorderCalls += 1;
+    return new Promise((resolve) => concurrencyPending.push(resolve));
+  },
+};
+const concurrencyConfigs = Object.fromEntries(["voltage", "current", "power"].map((metric) => [
+  `before-${metric}`,
+  { title: metric, entities: [{ entity: `sensor.power_monitor_${metric}_a`, name: "Фаза A" }] },
+]));
+const concurrencyLoad = concurrencyHistory._startHistoryLoad(
+  "7d", { hours: 168 }, concurrencyConfigs);
+concurrencyHistory._historyLoads.set("7d", concurrencyLoad);
+if (concurrentRecorderCalls !== 2) {
+  throw new Error("Recorder graph loading must enforce its concurrency limit");
+}
+concurrencyPending.shift()([]);
+await new Promise((resolve) => setImmediate(resolve));
+if (concurrentRecorderCalls !== 3) {
+  throw new Error("the next Recorder graph must start only after a worker becomes available");
+}
+concurrencyPending.splice(0).forEach((resolve) => resolve([]));
+await concurrencyLoad.promise;
+
+const periodCacheHistory = new context.Panel();
+periodCacheHistory._view = "history";
+periodCacheHistory._registryLoaded = true;
+periodCacheHistory._historyPeriod = "24h";
+periodCacheHistory._canvas = {
+  querySelector: () => null,
+  querySelectorAll: () => [],
+};
+periodCacheHistory._historyCardConfigs = () => ({
+  "before-voltage": {
+    title: "Напряжение",
+    entities: [{ entity: "sensor.power_monitor_voltage_a", name: "Фаза A" }],
+  },
+  "before-power": {
+    title: "Мощность",
+    entities: [{ entity: "sensor.power_monitor_power_a", name: "Фаза A" }],
+  },
+});
+const pendingPeriodRequests = [];
+let periodRecorderCalls = 0;
+periodCacheHistory._hass = {
+  callApi: () => {
+    periodRecorderCalls += 1;
+    return new Promise((resolve) => pendingPeriodRequests.push(resolve));
+  },
+};
+const initial24hLoad = periodCacheHistory._mountHistoryCards();
+if (periodRecorderCalls !== 2) {
+  throw new Error("Recorder history must be partitioned into independently renderable graph requests");
+}
+pendingPeriodRequests.splice(0).forEach((resolve) => resolve([]));
+await initial24hLoad;
+periodCacheHistory._historyPeriod = "7d";
+const initial7dLoad = periodCacheHistory._mountHistoryCards();
+if (periodRecorderCalls !== 4) throw new Error("the new period must start its own graph load");
+periodCacheHistory._historyPeriod = "24h";
+await periodCacheHistory._mountHistoryCards();
+if (periodRecorderCalls !== 4) throw new Error("returning to a completed period must use its cache");
+periodCacheHistory._historyPeriod = "7d";
+const resumed7dLoad = periodCacheHistory._mountHistoryCards();
+if (periodRecorderCalls !== 4) throw new Error("returning to an in-flight period must reuse its requests");
+pendingPeriodRequests.splice(0).forEach((resolve) => resolve([]));
+await Promise.all([initial7dLoad, resumed7dLoad]);
+if (periodCacheHistory._historyMountedPeriod !== "7d" ||
+    periodCacheHistory._historyLoadingKey !== null) {
+  throw new Error("the resumed weekly period must settle without a duplicate Recorder request");
 }
 
 const timeoutHistory = new context.Panel();
