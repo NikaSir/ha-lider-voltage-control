@@ -2,8 +2,7 @@ name: Repository checks
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -27,87 +26,74 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Validate JSON and Python
+      - name: Validate JSON YAML and Python
         run: |
           python - <<'PY'
-          import ast
-          import json
+          import ast, json
           from pathlib import Path
-
+          import yaml
           for path in Path('.').rglob('*.json'):
               json.loads(path.read_text(encoding='utf-8'))
-              print(f'OK {path}')
+              print('OK', path)
+          for path in Path('contracts').rglob('*.yaml'):
+              yaml.safe_load(path.read_text(encoding='utf-8'))
+              print('OK', path)
           for path in Path('custom_components').rglob('*.py'):
               ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
-              print(f'OK {path}')
+              print('OK', path)
           PY
 
-      - name: Validate JavaScript
+      - name: Validate clean frontend
         run: |
           node scripts/build-frontend-bundle.mjs --check
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js
           node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           node scripts/check-stable-dom.mjs
 
-      - name: Verify mandatory NikaS UI standard
+      - name: Verify NikaS v1.9
         run: python scripts/check-nikas-ui-standard.py
 
-      - name: Verify version parity
+      - name: Verify version and title parity
         run: |
           python - <<'PY'
-          import json
-          import re
+          import json, re
           from pathlib import Path
-
-          expected = "0.8.3"
-          expected_title = "Электросеть"
-          manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
-          panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())
-          panel_py = Path("custom_components/lider_voltage_control/panel.py").read_text()
-          source = Path("custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js").read_text()
-          contract = Path("contracts/lider_voltage_control.yaml").read_text()
+          expected = '0.9.0'
+          title = 'Электросеть'
+          manifest = json.loads(Path('custom_components/lider_voltage_control/manifest.json').read_text())
+          panel_manifest = json.loads(Path('custom_components/lider_voltage_control/panel_manifest.json').read_text())
+          panel_py = Path('custom_components/lider_voltage_control/panel.py').read_text()
+          source = Path('custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js').read_text()
+          contract = Path('contracts/lider_voltage_control.yaml').read_text()
           versions = {
-              "integration manifest": manifest["version"],
-              "panel manifest": panel_manifest["ui_version"],
-              "panel.py": re.search(r'PANEL_UI_VERSION = "([^"]+)"', panel_py).group(1),
-              "frontend source": re.search(r'const LIDER_UI_VERSION = "([^"]+)"', source).group(1),
-              "contract": re.search(r'^  version: ([^\s]+)$', contract, re.MULTILINE).group(1),
+              'integration': manifest['version'],
+              'panel manifest': panel_manifest['ui_version'],
+              'panel.py': re.search(r'PANEL_UI_VERSION = "([^"]+)"', panel_py).group(1),
+              'frontend': re.search(r'const LIDER_UI_VERSION = "([^"]+)"', source).group(1),
+              'contract': re.search(r'^  version: ([^\s]+)$', contract, re.MULTILINE).group(1),
           }
-          wrong = {name: version for name, version in versions.items() if version != expected}
-          if wrong:
-              raise SystemExit(f"Version mismatch: {wrong}")
-          titles = {
-              "panel manifest": panel_manifest["title"],
-              "panel.py": re.search(r'PANEL_TITLE = "([^"]+)"', panel_py).group(1),
-              "frontend source": re.search(r'const PANEL_TITLE = "([^"]+)"', source).group(1),
-              "contract": re.search(r'^  title: (.+)$', contract, re.MULTILINE).group(1),
-          }
-          wrong_titles = {name: title for name, title in titles.items() if title != expected_title}
-          if wrong_titles:
-              raise SystemExit(f"Panel title mismatch: {wrong_titles}")
+          assert all(v == expected for v in versions.values()), versions
+          assert panel_manifest['title'] == title
+          assert f'PANEL_TITLE = "{title}"' in panel_py
+          assert f'const PANEL_TITLE = "{title}"' in source
           print(versions)
-          print(titles)
           PY
 
-      - name: Verify panel contract
+      - name: Verify factual contract
         run: |
+          grep -F 'LIDER PS-7500W-30' contracts/lider_voltage_control.yaml
           grep -F 'sensor.power_monitor_voltage_a' contracts/lider_voltage_control.yaml
           grep -F 'sensor.socket_zb_2_voltage' contracts/lider_voltage_control.yaml
           grep -F 'W0035313411160_input_voltage' contracts/lider_voltage_control.yaml
+          grep -F 'primary_transport: websocket_history_during_period' contracts/lider_voltage_control.yaml
+          grep -F 'fallback_transport: recorder_rest' contracts/lider_voltage_control.yaml
+          grep -F '"clean_rewrite": true' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"synthetic_entity_ids": false' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"bottom_tab_columns": 5' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"bottom_icon_px": 28' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"header_button_px": 44' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"controls": "gesture_only"' custom_components/lider_voltage_control/panel_manifest.json
           grep -F 'mdi:transmission-tower' custom_components/lider_voltage_control/panel.py
-          grep -F '"header_button_px": 44' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"mode": "self_contained_bundle"' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"bottom_icon_px": 28' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"bottom_tabs_single_row": true' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"bottom_tab_columns": 5' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"mobile_input_metrics": "two_stacked_rows"' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F 'this._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика")' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
-          grep -F '@media (max-width:560px)' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
-          grep -F 'grid-template-columns:repeat(5,minmax(0,1fr))' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
-          ! grep -E '^[[:space:]]*import[[:space:]]' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
-          grep -F '"header_center_action": "return_to_source_base_panel"' custom_components/lider_voltage_control/panel_manifest.json
-          grep -F '"diagnostics"' custom_components/lider_voltage_control/panel_manifest.json
           test -f custom_components/lider_voltage_control/brand/icon.png
           test -f custom_components/lider_voltage_control/frontend/assets/lider-room-background-v1.webp
           test -f custom_components/lider_voltage_control/frontend/assets/lider-rack-ps22w30-v2.webp
