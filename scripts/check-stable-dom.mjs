@@ -12,7 +12,7 @@ if (source.includes("this._canvas.innerHTML")) throw new Error("work canvas must
 for (const forbidden of ["history.back(", "100dvh", "window.loadCardHelpers"]) if (source.includes(forbidden)) throw new Error(`forbidden runtime marker: ${forbidden}`);
 
 for (const marker of [
-  'const LIDER_UI_VERSION="0.9.0"',
+  'const LIDER_UI_VERSION="0.9.2"',
   'const PANEL_TITLE="Электросеть"',
   'class DataAdapter', 'class HistoryStore', 'class ViewStore', 'class LiderVoltageControlPanel',
   'new ViewStore(this)', 'new HistoryStore(this._adapter',
@@ -23,7 +23,8 @@ for (const marker of [
   'history/history_during_period', '&minimal_response&no_attributes&significant_changes_only',
   'config/entity_registry/list', 'SOURCE_ROUTE_AT_KEY', 'age>=0&&age<=30000',
   'ZOOM_STORAGE_KEY', 'this._suppressClicksUntil=Date.now()+500',
-  'hass-more-info', 'hass-toggle-menu', 'location-changed', 'LIDER PS-7500W-30', 'Нет данных'
+  'hass-more-info', 'hass-toggle-menu', 'location-changed', 'LIDER PS-7500W-30', 'Нет данных',
+  'phase-board', 'afterCurrent', 'afterPower'
 ]) if (!source.includes(marker)) throw new Error(`required clean-architecture marker missing: ${marker}`);
 
 const tabBlock = source.match(/const TABS=Object\.freeze\(\[([\s\S]*?)\]\);/);
@@ -37,4 +38,4 @@ for (const match of source.matchAll(/font-size:(\d+)px/g)) {
 }
 for (const marker of ['.header{position:fixed', '.work-viewport{position:fixed', '.bottom-bar{position:fixed']) if (source.includes(marker)) throw new Error(`independent fixed layer forbidden: ${marker}`);
 
-console.log("LIDER 0.9.0 clean architecture checks passed");
+console.log("LIDER 0.9.2 clean architecture checks passed");
