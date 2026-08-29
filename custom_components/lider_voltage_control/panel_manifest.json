@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.9.0",
+  "ui_version": "0.9.1",
   "template_version": "1.9",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -78,7 +78,8 @@
     "fills_work_viewport": true,
     "mobile_input_metrics": "compact_phase_strip_plus_operational_rows",
     "phase_cards_aligned_by_center": true,
-    "flow_caption": "Сеть → LIDER → дом",
+    "connection_plaque": "canonical_s8_omni_geometry_top_right",
+    "phase_cards_show_before_after_voltage_and_power": true,
     "localized_units": {"V": "В", "A": "А", "W": "Вт", "Hz": "Гц", "kWh": "kWh"},
     "diagnostics_visible_label": "Диагн.",
     "diagnostics_accessible_label": "Диагностика"
