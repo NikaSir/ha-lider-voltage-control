@@ -9,54 +9,23 @@
   "artifact_kind": "production",
   "runtime_files": ["custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js"],
   "production_entrypoint": "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js",
-  "build_source_files": [
-    "scripts/build-frontend-bundle.mjs",
-    "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js"
-  ],
+  "build_source_files": ["scripts/build-frontend-bundle.mjs", "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js"],
   "ui_version": "0.9.0",
   "web_component": "lider-voltage-control-panel",
-  "bundle_contract": {
-    "autonomous": true,
-    "runtime_imports": false,
-    "deterministic": true,
-    "production_equals_validated_source": true,
-    "cache_busting": "ui_version"
-  },
-  "data_truth": {
-    "entity_source": "integration_or_ha_registry",
-    "unknown_unavailable": "explicit",
-    "invented_entity_ids": false,
-    "fixed_entity_ids": "tested_public_contract_only",
-    "command_policy": "read_only",
-    "forbidden_command_markers": [".callService("]
-  },
+  "bundle_contract": {"autonomous": true, "runtime_imports": false, "deterministic": true, "production_equals_validated_source": true, "cache_busting": "ui_version"},
+  "data_truth": {"entity_source": "integration_or_ha_registry", "unknown_unavailable": "explicit", "invented_entity_ids": false, "fixed_entity_ids": "tested_public_contract_only", "command_policy": "read_only", "forbidden_command_markers": [".callService("]},
   "header_return": {
     "button_marker": "class=\"title-plaque\"",
     "version_marker": "<small>UI v",
     "focus_marker": ".title-plaque:focus-visible",
     "pressed_marker": ".title-plaque:active",
-    "explicit_precedence_marker": "params.get(\"return_to\"), params.get(\"from\")",
+    "explicit_precedence_marker": "params.get(\"return_to\"),params.get(\"from\")",
     "capture_once_marker": "this._captureReturnRoute()",
     "timestamp_required_marker": "SOURCE_ROUTE_AT_KEY",
-    "future_timestamp_rejection_marker": "age >= 0",
+    "future_timestamp_rejection_marker": "age>=0",
     "one_shot_marker": "sessionStorage.removeItem(SOURCE_ROUTE_AT_KEY)"
   },
-  "rendering_contract": {
-    "shell_mounts_once": true,
-    "hass_updates": "requestAnimationFrame_targeted_patch",
-    "view_cache": "ViewStore",
-    "history_cache": "HistoryStore",
-    "diagnostics": "keyed_entity_cards"
-  },
+  "rendering_contract": {"shell_mounts_once": true, "hass_updates": "requestAnimationFrame_targeted_patch", "view_cache": "ViewStore", "history_cache": "HistoryStore", "diagnostics": "keyed_entity_cards"},
   "forbidden_runtime_markers": ["history.back(", "100dvh", "window.loadCardHelpers"],
-  "title_plaque_reference": {
-    "implementation": "LIDER",
-    "min_width": "min(290px,100%)",
-    "min_height_px": 44,
-    "padding_px": "5 14",
-    "radius_px": 16,
-    "primary_background_mix_percent": 5,
-    "primary_border_mix_percent": 24,
-    "shadow": "0 5px 16px rgba(23,45,76,.06)"
-  }
+  "title_plaque_reference": {"implementation": "LIDER", "min_width": "min(290px,100%)", "min_height_px": 44, "padding_px": "5 14", "radius_px": 16, "primary_background_mix_percent": 5, "primary_border_mix_percent": 24, "shadow": "0 5px 16px rgba(23,45,76,.06)"}
 }
