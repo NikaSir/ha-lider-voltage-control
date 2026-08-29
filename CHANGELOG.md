@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.3
+
+- Splits each statistics period into independent per-graph Recorder requests so one oversized response cannot block every chart.
+- Limits Recorder work to two concurrent graph requests and renders completed graphs progressively.
+- Reuses both in-flight and completed period loads, preventing `24h → 7d → 24h → 7d` navigation from duplicating expensive queries.
+- Raises the terminal timeout to 60 seconds for each smaller graph request; a failed graph remains explicit without hiding successful graphs.
+- Makes Header refresh the only action that discards and reloads the cached active period.
+
 ## 0.8.2
 
 - Prevents telemetry updates from starting overlapping Recorder history requests for the same period and invalidating every earlier response.

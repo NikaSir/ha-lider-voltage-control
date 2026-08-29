@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.2
+  version: 0.8.3
 spec:
   read_only: true
   rendering:
@@ -138,7 +138,10 @@ spec:
     rendering: autonomous_svg
     lovelace_helpers_required: false
     single_flight_per_period: true
-    request_timeout_seconds: 30
+    cache_in_flight_and_completed_periods: true
+    request_partition: per_graph
+    request_concurrency: 2
+    request_timeout_seconds: 60
     significant_changes_only: true
     periods: [24h, 7d, 30d, 12m]
     metrics: [voltage, current, power]
