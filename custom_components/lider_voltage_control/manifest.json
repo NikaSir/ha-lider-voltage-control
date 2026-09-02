@@ -1,6 +1,6 @@
 {
   "domain": "lider_voltage_control",
-  "name": "LIDER Voltage Control",
+  "name": "NikaS LIDER Voltage Control",
   "codeowners": ["@NikaSir"],
   "config_flow": true,
   "dependencies": ["http", "panel_custom"],
@@ -9,5 +9,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/NikaSir/ha-lider-voltage-control/issues",
   "requirements": [],
-  "version": "0.8.3"
+  "version": "0.8.4"
 }
