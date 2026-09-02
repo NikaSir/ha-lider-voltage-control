@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.4
+
+- Prefixes the Home Assistant and HACS integration name with `NikaS`.
+- Republishes the approved local LIDER brand icon while retaining panel UI 0.8.3.
+- Verifies the integration package and retained panel UI versions independently in CI.
+
 ## 0.8.3
 
 - Splits each statistics period into independent per-graph Recorder requests so one oversized response cannot block every chart.

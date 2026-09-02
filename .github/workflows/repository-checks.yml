@@ -59,23 +59,27 @@ jobs:
           import re
           from pathlib import Path
 
-          expected = "0.8.3"
+          expected_integration = "0.8.4"
+          expected_ui = "0.8.3"
           expected_title = "Электросеть"
           manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
           panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())
           panel_py = Path("custom_components/lider_voltage_control/panel.py").read_text()
           source = Path("custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js").read_text()
           contract = Path("contracts/lider_voltage_control.yaml").read_text()
-          versions = {
-              "integration manifest": manifest["version"],
+          if manifest["version"] != expected_integration:
+              raise SystemExit(
+                  f"Integration version mismatch: {manifest['version']} != {expected_integration}"
+              )
+          ui_versions = {
               "panel manifest": panel_manifest["ui_version"],
               "panel.py": re.search(r'PANEL_UI_VERSION = "([^"]+)"', panel_py).group(1),
               "frontend source": re.search(r'const LIDER_UI_VERSION = "([^"]+)"', source).group(1),
               "contract": re.search(r'^  version: ([^\s]+)$', contract, re.MULTILINE).group(1),
           }
-          wrong = {name: version for name, version in versions.items() if version != expected}
+          wrong = {name: version for name, version in ui_versions.items() if version != expected_ui}
           if wrong:
-              raise SystemExit(f"Version mismatch: {wrong}")
+              raise SystemExit(f"UI version mismatch: {wrong}")
           titles = {
               "panel manifest": panel_manifest["title"],
               "panel.py": re.search(r'PANEL_TITLE = "([^"]+)"', panel_py).group(1),
@@ -85,7 +89,7 @@ jobs:
           wrong_titles = {name: title for name, title in titles.items() if title != expected_title}
           if wrong_titles:
               raise SystemExit(f"Panel title mismatch: {wrong_titles}")
-          print(versions)
+          print({"integration manifest": manifest["version"], **ui_versions})
           print(titles)
           PY
 
