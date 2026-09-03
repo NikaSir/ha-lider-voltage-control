@@ -30,7 +30,9 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.4"',
+  'const LIDER_UI_VERSION = "0.8.5"',
+  '.title{text-align:center;display:grid;place-content:center;line-height:1.08}',
+  '.title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px',
   'const NIKAS_SHELL_V2_VERSION = "2.1"',
   'const PANEL_TITLE = "Электросеть"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
@@ -105,6 +107,15 @@ for (const forbiddenShellMarker of [
 ]) {
   if (bundle.includes(forbiddenShellMarker)) {
     throw new Error(`phone shell can leak into the outer scrolling surface: ${forbiddenShellMarker}`);
+  }
+}
+
+for (const clippedHeaderMarker of [
+  '.title{text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}',
+  '.title small{margin-top:3px',
+]) {
+  if (bundle.includes(clippedHeaderMarker)) {
+    throw new Error(`Header version can overflow the 52px title plaque: ${clippedHeaderMarker}`);
   }
 }
 

@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.4
+  version: 0.8.5
 spec:
   read_only: true
   rendering:
