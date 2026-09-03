@@ -1,17 +1,20 @@
-# LIDER compliance with NikaS UI v1.9 / Navigation Contract v1.1 / rule 1.17
+# LIDER compliance with NikaS UI v2.2 / Navigation Contract v1.2 / rule 1.17
 
-Version under review: integration/UI `0.8.3`.
+Version under review: integration `0.8.5`, panel UI `0.8.4`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
 | One persistent Header, work viewport and Bottom Tab Bar | PASS | Shell is mounted once; CI rejects additional `shadowRoot.innerHTML` assignments. |
-| Height-locked phone shell | PASS | A fixed host owns one three-row grid; only the middle viewport scrolls and scroll chaining into the outer HA document is disabled. CI rejects the former `100dvh`/independent-fixed-layer topology. |
+| Host-bound shell | PASS | The custom element fills the actual Home Assistant panel host; one 60/work/64 px grid owns Header, viewport and Bottom Tab Bar without `position: fixed`, `100vw`, `100vh` or `100dvh`. |
+| iOS boundary guard | PASS | A capture-phase non-passive host `touchmove` guard blocks only vertical edge escape and is removed on disconnect; multitouch remains available to panel zoom. |
+| Canonical shell source | PASS | The exact shell v2.1 source kit is vendored, hash-checked and concatenated at build time into the autonomous production bundle. |
 | Stable telemetry rendering | PASS | `set hass()` coalesces updates to one animation frame and reconciles the active view only. |
 | Lazy visited-view DOM cache | PASS | Returning to a tab reattaches its existing subtree, including the overview image and history cards. |
 | Connection/freshness indicator | PASS | Independent `Локально / Нет связи / Нет данных` and freshness categories; category-only patching. |
 | Gesture safety | PASS | Pinch waits for both fingers to lift and suppresses the following synthetic click. |
 | Zoom bounds and 100% native scroll | PASS | 75–200%, axis-aware clamping, 100% origin normalization and two-finger reset. |
-| Bottom navigation | PASS | Five equal destinations, 28 px MDI icons and 12 px labels remain in the fixed shell row outside the work viewport. |
+| Bottom navigation | PASS | Five equal destinations, 26 px MDI icons and 12 px/700 labels remain in the persistent shell row outside the work viewport. |
+| Single-device identity | PASS | L1/L2/L3 are phases of one three-phase LIDER system. No peer-device selector or selector status lamps are rendered. |
 | Panel and HA menu name | PASS | The Header and registered sidebar title use the approved `Электросеть`; LIDER remains the equipment/integration identity. |
 | Mobile overview labels | PASS | At phone widths, full `Мощность` and `Напряжение` labels occupy separate compact rows; typography remains 12 px. |
 | Overview height fit | PASS | Overview uses the exact work-viewport height: its installation scene absorbs the available remainder above the line card, and 100% scale exposes no residual vertical scroll. Other long tabs keep native work-area scrolling. |
