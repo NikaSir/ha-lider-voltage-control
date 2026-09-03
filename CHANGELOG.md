@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.5
+
+- Migrates the approved `Электросеть` composition to NikaS Specialized Panel UI Standard v2.2 and Navigation Contract v1.2.
+- Vendors the canonical shell v2.1 source at build time and keeps one deterministic autonomous frontend bundle.
+- Binds Header, work viewport and Bottom Tab Bar to the Home Assistant panel host, adds the capture-phase iOS boundary guard and adopts the canonical 60/64 px shell rows, 52 px title plaque and 26 px tab icons.
+- Adds the current `Дом`, `Комнаты`, `Действия` and `Инфраструктура` return routes.
+- Records L1/L2/L3 as phases of one three-phase LIDER device; no peer-device selector or selector status lamps are rendered.
+- Raises the panel UI to 0.8.4 while preserving the accepted v0.8.3 domain composition and read-only behavior.
+
 ## 0.8.4
 
 - Prefixes the Home Assistant and HACS integration name with `NikaS`.

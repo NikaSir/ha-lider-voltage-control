@@ -1,13 +1,24 @@
 import fs from "node:fs";
 import vm from "node:vm";
 
+const standardConfig = JSON.parse(fs.readFileSync(".nikas-ui-standard.json", "utf8"));
+if (standardConfig.peer_selector?.present !== false ||
+    standardConfig.peer_selector?.reason !== "single_three_phase_device") {
+  throw new Error("L1/L2/L3 must remain phases of one LIDER device without a peer selector");
+}
+
 const sourcePath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js";
+const shellPath = "templates/shell_v2/nikas-specialized-shell.js";
 const bundlePath = "custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js";
 const source = fs.readFileSync(sourcePath, "utf8");
+const shell = fs.readFileSync(shellPath, "utf8");
 const bundle = fs.readFileSync(bundlePath, "utf8");
 const banner = "/* GENERATED BUNDLE — run node scripts/build-frontend-bundle.mjs; do not edit directly. */\n";
+const expected = banner +
+  `// BEGIN ${shellPath}\n${shell.trimEnd()}\n// END ${shellPath}\n` +
+  `// BEGIN ${sourcePath}\n${source.trimEnd()}\n// END ${sourcePath}\n`;
 
-if (bundle !== banner + source) throw new Error("production bundle is not synchronized with its source");
+if (bundle !== expected) throw new Error("production bundle is not synchronized with its source kit and panel source");
 if (/^\s*import\s/m.test(bundle)) throw new Error("production bundle must be autonomous and contain no imports");
 if ([...bundle.matchAll(/shadowRoot\.innerHTML\s*=/g)].length !== 1) {
   throw new Error("shadowRoot.innerHTML is allowed exactly once during initial shell mount");
@@ -19,7 +30,8 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.3"',
+  'const LIDER_UI_VERSION = "0.8.4"',
+  'const NIKAS_SHELL_V2_VERSION = "2.1"',
   'const PANEL_TITLE = "Электросеть"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
   'this._viewCache = new Map()',
@@ -29,11 +41,12 @@ for (const marker of [
   'this._queueLiveUpdate()',
   'this._suppressClicksUntil = Date.now() + 500',
   'if (event.touches.length > 0) return',
-  'sessionStorage.getItem(RETURN_ROUTE_KEY)',
-  'handedOffRaw !== null',
-  'handedOffAtRaw !== null',
-  'handedOffAge >= 0',
-  '["return_to", "from"]',
+  '...params.getAll("return_to")',
+  'if (!route || !timestamp) return null',
+  'age < 0',
+  'captureNikasShellReturnRoute',
+  'createNikasShellScrollBoundaryGuard',
+  'host.addEventListener("touchmove", moveTouch, { passive: false, capture: true })',
   'window.history.pushState',
   '.title-return:focus-visible',
   '.title-return:active',
@@ -43,21 +56,24 @@ for (const marker of [
   '<p>Сеть → LIDER → дом</p>',
   'class="page overview-page"',
   'grid-template-columns:repeat(5,minmax(0,1fr))',
-  '--mdc-icon-size:28px',
-  '.tabs button small{display:block;max-width:100%;font-size:12px',
+  '--mdc-icon-size:26px',
+  '.tabs button small{display:block;flex:0 0 14px;max-width:100%;font-size:12px',
   '@media (max-width:560px)',
   '.input-metrics{grid-template-columns:1fr;gap:3px}',
   "V: 'В'",
   "A: 'А'",
   "W: 'Вт'",
   "Hz: 'Гц'",
-  ':host{position:fixed;inset:0',
-  '.app{position:absolute;inset:0;display:grid;grid-template-rows:',
+  ':host{position:relative;display:block;inline-size:100%;block-size:100%',
+  '.app{position:absolute;inset:0;display:grid;container:nikas-panel / inline-size;grid-template-rows:',
+  'calc(60px + env(safe-area-inset-top,0px))',
+  'calc(64px + env(safe-area-inset-bottom,0px))',
+  'max-width:1280px',
   'minmax(0,1fr)',
   '.viewport{position:relative;',
   'overscroll-behavior:none;touch-action:pan-y',
   '.viewport[data-view=\\"overview\\"]:not(.zoomed){overflow-y:hidden}',
-  '.canvas{width:100%;height:100%;min-height:100%',
+  '.canvas{width:100%;max-width:1280px;height:100%;min-height:100%',
   '.overview-page{height:100%;min-height:0;grid-template-rows:minmax(0,1fr) auto}',
   '.overview-page .installation{min-height:0;aspect-ratio:auto}',
   '.tabs{position:relative;',
@@ -79,7 +95,10 @@ if (bundle.includes("window.loadCardHelpers")) {
 }
 
 for (const forbiddenShellMarker of [
+  '100vw',
+  '100vh',
   'height:100dvh',
+  ':host{position:fixed',
   '.header{position:fixed',
   '.viewport{position:fixed',
   '.tabs{position:fixed',
@@ -123,12 +142,22 @@ const context = {
     removeItem: (key) => session.delete(key),
   },
   window: {
-    location: { href: "https://ha.local/dashboard-lider", origin: "https://ha.local" },
+    location: { href: "https://ha.local/dashboard-lider", origin: "https://ha.local", pathname: "/dashboard-lider", search: "", hash: "" },
     history: { pushState: () => {} },
     dispatchEvent: () => {},
+    sessionStorage: {
+      getItem: (key) => session.get(key) ?? null,
+      setItem: (key, value) => session.set(key, value),
+      removeItem: (key) => session.delete(key),
+    },
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+    },
   },
   document: { referrer: "" },
   URL,
+  URLSearchParams,
   requestAnimationFrame: (callback) => {
     const id = nextFrame++;
     frames.set(id, callback);
@@ -153,36 +182,52 @@ function flushFrames() {
 }
 
 vm.createContext(context);
-vm.runInContext(source + "\nthis.Panel = LiderVoltageControlPanel; this.resolveReturnRoute = resolveReturnRoute;", context);
+vm.runInContext(bundle + "\nthis.Panel = LiderVoltageControlPanel; this.captureReturnRoute = captureNikasShellReturnRoute; this.shouldBlockBoundaryMove = shouldBlockNikasShellBoundaryMove;", context);
 
-context.window.location.href = "https://ha.local/dashboard-lider?return_to=https%3A%2F%2Fevil.example%2Fdashboard-house&from=%2Fdashboard-actions%2Foverview";
-if (context.resolveReturnRoute({}) !== "/dashboard-actions/home") {
+if (!context.shouldBlockBoundaryMove({
+  deltaX: 0, deltaY: 12, inViewport: true, scrollTop: 0, scrollHeight: 900, clientHeight: 500,
+})) throw new Error("top-edge pull must be contained inside the panel host");
+if (!context.shouldBlockBoundaryMove({
+  deltaX: 0, deltaY: -12, inViewport: true, scrollTop: 400, scrollHeight: 900, clientHeight: 500,
+})) throw new Error("bottom-edge push must be contained inside the panel host");
+if (context.shouldBlockBoundaryMove({
+  deltaX: 0, deltaY: -12, inViewport: true, scrollTop: 200, scrollHeight: 900, clientHeight: 500,
+})) throw new Error("native scrolling inside the work viewport must remain available");
+if (context.shouldBlockBoundaryMove({
+  deltaX: 14, deltaY: 4, inViewport: false, scrollTop: 0, scrollHeight: 0, clientHeight: 0,
+})) throw new Error("horizontal gestures must not be captured by the vertical boundary guard");
+
+context.window.location.search = "?return_to=https%3A%2F%2Fevil.example%2Fdashboard-house&from=%2Fdashboard-actions%2Foverview";
+if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-actions/home") {
   throw new Error("an invalid return_to must not suppress a valid from route");
 }
-context.window.location.href = "https://ha.local/dashboard-lider";
+context.window.location.search = "";
+storage.clear();
 
 session.clear();
 session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
-if (context.resolveReturnRoute({}) !== "/dashboard-infrastructure/overview") {
+if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-infrastructure/overview") {
   throw new Error("a route without its timestamp must fail closed");
 }
+storage.clear();
 session.clear();
 session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
 session.set("nikas.specialized.source_route_at.v1", String(Date.now() + 1_000));
-if (context.resolveReturnRoute({}) !== "/dashboard-infrastructure/overview") {
+if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-infrastructure/overview") {
   throw new Error("a future hand-off timestamp must fail closed");
 }
+storage.clear();
 session.clear();
 session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
 session.set("nikas.specialized.source_route_at.v1", String(Date.now()));
-if (context.resolveReturnRoute({}) !== "/dashboard-actions/home" ||
+if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-actions/home" ||
     session.has("nikas.specialized.source_route.v1") ||
     session.has("nikas.specialized.source_route_at.v1")) {
   throw new Error("a valid hand-off pair must be consumed exactly once");
 }
 
-session.set("nikas.lider.return_route.v1", "/dashboard-house-v11/overview");
-if (context.resolveReturnRoute({}) !== "/dashboard-house-v11/home") {
+storage.set("nikas.lider.return_route.v1", "/dashboard-house-v13/overview");
+if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-house-v13/home") {
   throw new Error("saved Header return route must survive a panel reload");
 }
 

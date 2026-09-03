@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.3
+  version: 0.8.4
 spec:
   read_only: true
   rendering:
@@ -20,7 +20,13 @@ spec:
     cold_registry_completion: reconcile_current_view_only
     production_bundle: self_contained
     runtime_module_imports: false
-    phone_shell: fixed_host_three_row_grid
+    phone_shell: host_bound_three_row_grid
+    shell_contract_version: "2.1"
+    host_boundary: ha-panel
+    header_body_px: 60
+    bottom_nav_body_px: 64
+    content_max_width_px: 1280
+    scroll_boundary_guard: capture_non_passive_host_boundary_guard
     outer_document_scroll: false
     work_viewport_scroll_chaining: false
   navigation:
@@ -44,6 +50,9 @@ spec:
     wait_for_all_touches_to_end: true
     suppress_post_gesture_click: true
   equipment:
+    device_identity: one_three_phase_LIDER_system
+    peer_device_selector: false
+    phase_labels: [L1, L2, L3]
     three_phase_assembly: three LIDER PS7500W-15 modules
     phase_module: LIDER PS7500W-15
     module_count: 3
