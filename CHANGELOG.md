@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.6
+
+- Fits both Header title lines inside the canonical 52 px plaque by removing the legacy flex gap and subtitle margin.
+- Aligns title and version typography with the canonical S8 OMNI grid centering so `UI v0.8.5` remains fully visible on iPhone.
+- Preserves the approved overview composition, three-phase device identity and all telemetry behavior.
+
 ## 0.8.5
 
 - Migrates the approved `Электросеть` composition to NikaS Specialized Panel UI Standard v2.2 and Navigation Contract v1.2.

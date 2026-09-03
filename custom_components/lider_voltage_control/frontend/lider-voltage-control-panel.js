@@ -363,7 +363,7 @@ const HISTORY_MAX_POINTS_PER_SERIES = 360;
 const HISTORY_REQUEST_TIMEOUT_MS = 60_000;
 const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
-const LIDER_UI_VERSION = "0.8.4";
+const LIDER_UI_VERSION = "0.8.5";
 const PANEL_TITLE = "Электросеть";
 const SAFE_DEFAULT_ROUTE = "/dashboard-infrastructure/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
@@ -1847,12 +1847,12 @@ class LiderVoltageControlPanel extends HTMLElement {
       "button{font:inherit;color:inherit}",
       ".app{position:absolute;inset:0;display:grid;container:nikas-panel / inline-size;grid-template-rows:calc(60px + env(safe-area-inset-top,0px)) minmax(0,1fr) calc(64px + env(safe-area-inset-bottom,0px));width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;overscroll-behavior:none;background:var(--primary-background-color,#f5f6f8)}",
       ".header{position:relative;z-index:20;min-width:0;min-height:0;padding:env(safe-area-inset-top,0px) calc(12px + env(safe-area-inset-right,0px)) 0 calc(12px + env(safe-area-inset-left,0px));display:grid;grid-template-columns:52px minmax(0,1fr) 52px;align-items:center;background:color-mix(in srgb,var(--primary-background-color,#f5f6f8) 97%,transparent);border-bottom:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 70%,transparent);backdrop-filter:blur(18px) saturate(130%);-webkit-backdrop-filter:blur(18px) saturate(130%)}",
-      ".title{text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}",
+      ".title{text-align:center;display:grid;place-content:center;line-height:1.08}",
       ".title-return{justify-self:center;width:min(360px,100%);max-width:100%;height:52px;padding:5px 14px;border:1px solid color-mix(in srgb,var(--primary-color,#03a9d9) 24%,var(--divider-color,#dfe3e8));border-radius:16px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 5%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.06);cursor:pointer}",
       ".title-return:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 13%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 42%,var(--divider-color,#dfe3e8));box-shadow:0 2px 7px rgba(23,45,76,.05)}",
       ".title-return:focus-visible{outline:2px solid var(--primary-color,#03a9d9);outline-offset:2px}",
-      ".title strong{font-size:23px;font-weight:800;line-height:1.05;color:var(--primary-text-color,#17191c)}",
-      ".title small{margin-top:3px;font-size:14px;font-weight:560;line-height:1.2;color:var(--secondary-text-color,#68737d);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}",
+      ".title strong{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:23px;font-weight:800}",
+      ".title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:560;color:var(--secondary-text-color,#68737d)}",
       ".shell-button{width:44px;min-width:44px;height:44px;min-height:44px;margin:auto;padding:0;border:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 72%,transparent);background:var(--card-background-color,#fff);border-radius:16px;display:grid;place-items:center;box-shadow:0 7px 20px rgba(23,45,76,.08)}",
       ".shell-button ha-icon{--mdc-icon-size:25px;width:25px;height:25px}",
       ".menu{justify-self:start;color:var(--primary-text-color,#17191c)}",

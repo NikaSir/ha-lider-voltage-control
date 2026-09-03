@@ -24,7 +24,7 @@
     "delivery": "vendored-build-time",
     "runtime_dependency": false
   },
-  "ui_version": "0.8.4",
+  "ui_version": "0.8.5",
   "web_component": "lider-voltage-control-panel",
   "bundle_contract": {
     "autonomous": true,

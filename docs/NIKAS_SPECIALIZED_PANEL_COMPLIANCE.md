@@ -1,6 +1,6 @@
 # LIDER compliance with NikaS UI v2.2 / Navigation Contract v1.2 / rule 1.17
 
-Version under review: integration `0.8.5`, panel UI `0.8.4`.
+Version under review: integration `0.8.6`, panel UI `0.8.5`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
