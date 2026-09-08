@@ -30,7 +30,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.5"',
+  'const LIDER_UI_VERSION = "0.8.6"',
   '.title{text-align:center;display:grid;place-content:center;line-height:1.08}',
   '.title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px',
   'const NIKAS_SHELL_V2_VERSION = "2.1"',
@@ -465,6 +465,60 @@ if (panel._worst(["unavailable", "emergency", "normal"]) !== "emergency") {
 }
 if (panel._worst(["unavailable", "normal"]) !== "unavailable") {
   throw new Error("unavailable data must remain explicit when there is no known alarm");
+}
+const telemetryNow = Date.now();
+const dayAgo = telemetryNow - 86_400_000;
+const voltageA = "sensor.power_monitor_voltage_a";
+const voltageB = "sensor.power_monitor_voltage_b";
+const voltageC = "sensor.power_monitor_voltage_c";
+const currentB = "sensor.power_monitor_current_b";
+panel._telemetrySnapshot = {
+  updatedAt: dayAgo,
+  values: {
+    [voltageA]: { state: "220", unit: "V", reportedAt: dayAgo },
+  },
+};
+panel._hass = {
+  locale: { language: "ru" },
+  states: {
+    "binary_sensor.power_meter_online": { state: "on", attributes: {} },
+    [voltageA]: { state: "unavailable", attributes: {}, last_reported: new Date(telemetryNow).toISOString() },
+    [voltageB]: { state: "221", attributes: { unit_of_measurement: "V" }, last_reported: new Date(telemetryNow).toISOString() },
+    [voltageC]: { state: "222", attributes: { unit_of_measurement: "V" }, last_reported: new Date(telemetryNow).toISOString() },
+    [currentB]: { state: "5", attributes: { unit_of_measurement: "A" }, last_reported: new Date(telemetryNow).toISOString() },
+  },
+};
+const cachedVoltage = panel._reading(voltageA);
+if (!cachedVoltage.available || cachedVoltage.quality !== "stale" || cachedVoltage.reportedAt !== dayAgo) {
+  throw new Error("cached phase voltage must retain its stale quality and measurement timestamp");
+}
+const cachedScene = panel._sceneReading("Напряжение", voltageA, "before");
+if (!cachedScene.includes("220,0 В") || !cachedScene.includes("устарело") || cachedScene.includes("scene-reading normal")) {
+  throw new Error("cached phase voltage must remain visible but must never look current or normal");
+}
+if (panel._telemetryFreshness().key !== "stale") {
+  throw new Error("one stale required phase must make aggregate voltage telemetry stale");
+}
+panel._hass.states[voltageA] = {
+  state: "223",
+  attributes: { unit_of_measurement: "V" },
+  last_reported: new Date(telemetryNow).toISOString(),
+};
+const recoveredVoltage = panel._reading(voltageA);
+if (!recoveredVoltage.available || recoveredVoltage.quality !== "current" ||
+    panel._entitySeverity(voltageA, "before") !== "normal" ||
+    panel._telemetryFreshness().key !== "fresh") {
+  throw new Error("a recovered phase must return to current quality and normal aggregate freshness");
+}
+panel._hass.states[voltageA].last_reported = new Date(dayAgo).toISOString();
+if (panel._reading(voltageA).quality !== "stale" ||
+    panel._entitySeverity(voltageA, "before") !== "stale") {
+  throw new Error("an old live phase timestamp must also prevent a normal status");
+}
+panel._hass.states[voltageA].last_reported = new Date(telemetryNow).toISOString();
+panel._hass.states["binary_sensor.power_meter_online"].state = "unknown";
+if (panel._telemetryFreshness().key !== "fresh") {
+  throw new Error("voltage freshness must remain independent from connection state");
 }
 panel._hass = {
   locale: { language: "ru" },
