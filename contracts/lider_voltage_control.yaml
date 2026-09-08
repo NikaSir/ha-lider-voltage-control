@@ -3,9 +3,28 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.6
+  version: 0.8.7
 spec:
   read_only: true
+  refresh_action:
+    scope: read_only_telemetry
+    service: homeassistant.update_entity
+    target_selection: existing_related_entities_only
+    history_reload: active_period_only
+    success: all_required_requests_explicitly_succeeded
+    minimum_busy_ms: 900
+    result_visible_ms: 1400
+    duplicate_activation: blocked_while_busy
+    reduced_motion: static_busy_surface
+    freshness: accepted_sample_only
+    update_mode: point_patch
+    preserve: [header, active_tab, work_viewport, scroll, zoom]
+  panel_lifecycle:
+    route_owner: installed_configuration
+    registration_before_device_io: true
+    initial_failure: panel_remains_registered
+    route_collision: preserve_foreign_route
+    unload: remove_owned_route_only
   rendering:
     stable_shell_dom: true
     shadow_root_inner_html: initial_mount_only
@@ -32,7 +51,7 @@ spec:
   navigation:
     primary_tabs: [overview, before, after, history, diagnostics]
     bottom_tab_columns: 5
-    bottom_icon_px: 28
+    bottom_icon_px: 26
     bottom_label_px: 12
     non_interruptible_line_locations: [overview, history, diagnostics]
     diagnostics_visible_label: Диагн.

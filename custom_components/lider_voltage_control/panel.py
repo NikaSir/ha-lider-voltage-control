@@ -16,12 +16,13 @@ PANEL_URL_PATH = "dashboard-lider"
 PANEL_PARENT_ROUTE = "/dashboard-infrastructure/overview"
 PANEL_ICON = "mdi:transmission-tower"
 PANEL_WEB_COMPONENT = "lider-voltage-control-panel"
-PANEL_UI_VERSION = "0.8.6"
+PANEL_UI_VERSION = "0.8.7"
 PANEL_TEMPLATE_VERSION = "2.2"
 PANEL_STATIC_URL = "/lider_voltage_control_panel"
 PANEL_STATIC_REGISTERED = "panel_static_registered"
 PANEL_DIRECTORY = Path(__file__).parent / "frontend"
 PANEL_BUNDLE = "lider-voltage-control-panel.js"
+PANEL_ROUTE_OWNED = "panel_route_owned"
 
 PANEL_METADATA = {
     "id": PANEL_ID,
@@ -46,7 +47,11 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         )
         domain_data[PANEL_STATIC_REGISTERED] = True
 
-    if frontend.async_panel_exists(hass, PANEL_URL_PATH):
+    route_exists = frontend.async_panel_exists(hass, PANEL_URL_PATH)
+    if domain_data.get(PANEL_ROUTE_OWNED) and route_exists:
+        return
+    domain_data.pop(PANEL_ROUTE_OWNED, None)
+    if route_exists:
         return
 
     await panel_custom.async_register_panel(
@@ -61,8 +66,12 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         handle_safe_area=True,
         config=PANEL_METADATA,
     )
+    domain_data[PANEL_ROUTE_OWNED] = True
 
 
 def async_unregister_panel(hass: HomeAssistant) -> None:
     """Remove the panel when the config entry unloads."""
+    domain_data = hass.data.get(DOMAIN, {})
+    if not domain_data.pop(PANEL_ROUTE_OWNED, False):
+        return
     frontend.async_remove_panel(hass, PANEL_URL_PATH, warn_if_unknown=False)

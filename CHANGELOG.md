@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.8
+
+- Implements the NikaS Refresh Action Contract v1.1 with a real read-only `homeassistant.update_entity` request for existing related telemetry entities.
+- Keeps one mounted Header button through idle, 900 ms minimum busy, 1400 ms success/error and restored-idle states; duplicate requests, stale timers and disconnect callbacks cannot corrupt a newer cycle.
+- Treats missing targets, rejected calls and partial history reloads as visible failures; refresh completion does not fabricate telemetry freshness.
+- Tracks ownership of the Home Assistant panel route so foreign collisions are preserved and unload removes only the route registered by this integration.
+- Adds production-bundle refresh and panel-lifecycle regression tests, synchronizes the current NikaS 2.2 companion contracts and raises panel UI to 0.8.7 without changing the approved 0.8.3 composition.
+
 ## 0.8.7
 
 - Preserves measurement value, quality and timestamp when live telemetry becomes unavailable.

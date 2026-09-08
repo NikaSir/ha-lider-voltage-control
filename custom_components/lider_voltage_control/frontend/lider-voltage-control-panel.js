@@ -363,7 +363,9 @@ const HISTORY_MAX_POINTS_PER_SERIES = 360;
 const HISTORY_REQUEST_TIMEOUT_MS = 60_000;
 const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
-const LIDER_UI_VERSION = "0.8.6";
+const REFRESH_MIN_VISIBLE_MS = 900;
+const REFRESH_RESULT_VISIBLE_MS = 1_400;
+const LIDER_UI_VERSION = "0.8.7";
 const PANEL_TITLE = "Электросеть";
 const SAFE_DEFAULT_ROUTE = "/dashboard-infrastructure/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
@@ -411,6 +413,12 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._resizeHandler = () => this._applyTransform();
     this._returnRoute = null;
     this._removeShellBoundaryGuard = null;
+    this._refreshButton = null;
+    this._refreshStatus = null;
+    this._refreshState = "idle";
+    this._refreshPromise = null;
+    this._refreshResultTimer = null;
+    this._refreshRequestToken = 0;
   }
 
   set hass(value) {
@@ -440,6 +448,7 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   connectedCallback() {
     if (!this._mounted) this._mount();
+    this._applyRefreshState();
     this._startStatusTimer();
     window.removeEventListener("resize", this._resizeHandler);
     window.addEventListener("resize", this._resizeHandler);
@@ -452,6 +461,12 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._updateFrame = null;
     clearTimeout(this._toastTimer);
     this._toastTimer = null;
+    clearTimeout(this._refreshResultTimer);
+    this._refreshResultTimer = null;
+    this._refreshRequestToken += 1;
+    this._refreshPromise = null;
+    this._refreshState = "idle";
+    this._applyRefreshState();
     this._historyMountToken += 1;
     window.removeEventListener("resize", this._resizeHandler);
     this._removeShellBoundaryGuard?.();
@@ -567,9 +582,9 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<style>' + this._styles() + '</style>' +
       '<div class="app">' +
         '<header class="header">' +
-          '<button class="shell-button menu" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
+          '<button class="shell-button menu" type="button" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
           '<button class="title title-return" type="button" aria-label="' + PANEL_TITLE + ' — вернуться в базовую панель NikaS"><strong>' + PANEL_TITLE + '</strong><small>UI v' + LIDER_UI_VERSION + '</small></button>' +
-          '<button class="shell-button refresh" aria-label="Обновить"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
+          '<button class="shell-button refresh" type="button" aria-label="Обновить" aria-busy="false"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
           '<section class="canvas"></section>' +
@@ -581,23 +596,20 @@ class LiderVoltageControlPanel extends HTMLElement {
           this._tabButton("history", "mdi:chart-line", "Статистика") +
           this._tabButton("diagnostics", "mdi:stethoscope", "Диагн.", "Диагностика") +
         '</nav>' +
+        '<div class="refresh-feedback" role="status" aria-live="polite"></div>' +
         '<div class="zoom-toast" aria-live="polite">Масштаб 100%</div>' +
       '</div>';
 
     this._viewport = this.shadowRoot.querySelector(".viewport");
     this._canvas = this.shadowRoot.querySelector(".canvas");
     this._toast = this.shadowRoot.querySelector(".zoom-toast");
+    this._refreshButton = this.shadowRoot.querySelector(".refresh");
+    this._refreshStatus = this.shadowRoot.querySelector(".refresh-feedback");
 
     this.shadowRoot.querySelector(".menu").addEventListener("click", () => {
       this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
     });
-    this.shadowRoot.querySelector(".refresh").addEventListener("click", () => {
-      if (this._view === "history") {
-        this._reloadHistoryPeriod();
-        return;
-      }
-      this._queueLiveUpdate();
-    });
+    this._refreshButton.addEventListener("click", () => { void this._handleRefresh(); });
     this.shadowRoot.querySelector(".title-return").addEventListener("click", () => {
       navigateNikasShell(this._returnRoute || SAFE_DEFAULT_ROUTE);
     });
@@ -694,6 +706,109 @@ class LiderVoltageControlPanel extends HTMLElement {
     }
     this._queueLiveUpdate();
     requestAnimationFrame(() => this._applyTransform());
+  }
+
+  _refreshEntityIds() {
+    const related = [
+      ...Object.values(ENTITY_MAP.before),
+      ...Object.values(ENTITY_MAP.after),
+      ...Object.values(ENTITY_MAP.power),
+      ...Object.values(ENTITY_MAP.current),
+      ENTITY_MAP.meterOnline,
+      ENTITY_MAP.phaseLoss,
+      this._lineEntityId,
+      ...this._diagnosticEntities.before,
+      ...Object.values(this._diagnosticEntities.after).flat(),
+      ...this._diagnosticEntities.line,
+    ];
+    return [...new Set(related.filter((entityId) => entityId && this._hass?.states?.[entityId]))];
+  }
+
+  async _requestTelemetryRefresh() {
+    if (typeof this._hass?.callService !== "function") return false;
+    const entityIds = this._refreshEntityIds();
+    if (!entityIds.length) return false;
+    const result = await this._hass.callService(
+      "homeassistant",
+      "update_entity",
+      { entity_id: entityIds },
+    );
+    return result !== false;
+  }
+
+  async _performRefresh(view, historyPeriod) {
+    const requests = [this._requestTelemetryRefresh()];
+    if (view === "history") requests.push(this._reloadHistoryPeriod(historyPeriod));
+    const results = await Promise.allSettled(requests);
+    return results.every((result) => result.status === "fulfilled" && result.value === true);
+  }
+
+  async _waitForRefreshMinimum(startedAt) {
+    const remaining = REFRESH_MIN_VISIBLE_MS - (Date.now() - startedAt);
+    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+  }
+
+  _handleRefresh() {
+    if (this._refreshPromise) return this._refreshPromise;
+    clearTimeout(this._refreshResultTimer);
+    this._refreshResultTimer = null;
+    const token = ++this._refreshRequestToken;
+    const startedAt = Date.now();
+    const view = this._view;
+    const historyPeriod = this._historyPeriod;
+    this._refreshState = "busy";
+    this._applyRefreshState();
+
+    const request = this._performRefresh(view, historyPeriod)
+      .then((success) => success === true)
+      .catch(() => false);
+    const cycle = Promise.all([request, this._waitForRefreshMinimum(startedAt)])
+      .then(([success]) => {
+        if (token !== this._refreshRequestToken || !this.isConnected) return success;
+        this._refreshPromise = null;
+        this._refreshState = success ? "success" : "error";
+        this._applyRefreshState();
+        this._refreshResultTimer = setTimeout(() => {
+          if (token !== this._refreshRequestToken || !this.isConnected) return;
+          this._refreshResultTimer = null;
+          this._refreshState = "idle";
+          this._applyRefreshState();
+        }, REFRESH_RESULT_VISIBLE_MS);
+        return success;
+      });
+    this._refreshPromise = cycle;
+    return cycle;
+  }
+
+  _applyRefreshState() {
+    const button = this._refreshButton;
+    if (!button) return;
+    const state = this._refreshState;
+    const presentation = {
+      idle: { icon: "mdi:refresh", label: "Обновить", busy: false },
+      busy: { icon: "mdi:refresh", label: "Обновление данных", busy: true },
+      success: { icon: "mdi:check", label: "Запрос обновления выполнен", busy: false },
+      error: { icon: "mdi:alert-circle-outline", label: "Не удалось обновить данные", busy: false },
+    }[state] || { icon: "mdi:refresh", label: "Обновить", busy: false };
+    button.classList.toggle("refresh-busy", state === "busy");
+    button.classList.toggle("refresh-success", state === "success");
+    button.classList.toggle("refresh-error", state === "error");
+    button.disabled = presentation.busy;
+    if (button.getAttribute("aria-busy") !== String(presentation.busy)) {
+      button.setAttribute("aria-busy", String(presentation.busy));
+    }
+    if (button.getAttribute("aria-label") !== presentation.label) {
+      button.setAttribute("aria-label", presentation.label);
+    }
+    if (button.title !== presentation.label) button.title = presentation.label;
+    const icon = button.querySelector("ha-icon");
+    if (icon?.getAttribute("icon") !== presentation.icon) icon?.setAttribute("icon", presentation.icon);
+    if (this._refreshStatus) {
+      const message = state === "idle" ? "" : presentation.label;
+      if (this._refreshStatus.textContent !== message) this._refreshStatus.textContent = message;
+      this._refreshStatus.classList.toggle("visible", state === "error");
+      this._refreshStatus.classList.toggle("error", state === "error");
+    }
   }
 
   _viewHtml(view = this._view) {
@@ -827,7 +942,7 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _updateHistoryPeriod() {
-    if (this._view !== "history") return;
+    if (this._view !== "history") return Promise.resolve(false);
     this._historyMountToken += 1;
     this._historyMountedPeriod = null;
     this._historyLoadingKey = null;
@@ -844,13 +959,18 @@ class LiderVoltageControlPanel extends HTMLElement {
       loading.textContent = "Загрузка истории…";
       host.replaceChildren(loading);
     });
-    this._mountHistoryCards();
+    return this._mountHistoryCards();
   }
 
-  _reloadHistoryPeriod() {
-    if (this._view !== "history") return;
-    this._historyLoads.delete(this._historyPeriod);
-    this._updateHistoryPeriod();
+  async _reloadHistoryPeriod(period = this._historyPeriod) {
+    if (this._view !== "history" || this._historyPeriod !== period) return false;
+    this._historyLoads.delete(period);
+    const mounting = this._updateHistoryPeriod();
+    const load = this._historyLoads.get(period);
+    await mounting;
+    if (!load) return false;
+    await load.promise;
+    return Object.values(load.cards).every((card) => card.status === "ready");
   }
 
   _overview() {
@@ -1886,8 +2006,14 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".shell-button{width:44px;min-width:44px;height:44px;min-height:44px;margin:auto;padding:0;border:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 72%,transparent);background:var(--card-background-color,#fff);border-radius:16px;display:grid;place-items:center;box-shadow:0 7px 20px rgba(23,45,76,.08)}",
       ".shell-button ha-icon{--mdc-icon-size:25px;width:25px;height:25px}",
       ".menu{justify-self:start;color:var(--primary-text-color,#17191c)}",
-      ".refresh{justify-self:end;color:var(--primary-color,#03a9d9)}",
+      ".refresh{justify-self:end;color:var(--primary-color,#03a9d9);transition:color .18s ease,background .18s ease,transform .12s ease}",
+      ".refresh:disabled{opacity:1;cursor:progress}",
+      ".refresh.refresh-busy ha-icon{animation:lider-refresh-spin 900ms linear infinite}",
+      ".refresh.refresh-success{color:#43a047}",
+      ".refresh.refresh-error{color:#e53935}",
       ".shell-button:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 10%,var(--card-background-color,#fff));color:var(--primary-color,#03a9d9)}",
+      ".refresh-feedback{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}",
+      ".refresh-feedback.visible{z-index:35;top:calc(66px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:auto;height:auto;margin:0;padding:8px 12px;overflow:visible;clip-path:none;white-space:nowrap;border:1px solid color-mix(in srgb,#e53935 30%,var(--divider-color,#dfe3e8));border-radius:13px;background:color-mix(in srgb,#e53935 10%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.08);color:#e53935;font-size:12px;font-weight:700;pointer-events:none}",
       ".viewport{position:relative;z-index:1;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;touch-action:pan-y;-webkit-overflow-scrolling:touch;overflow-anchor:none}",
       ".viewport.zoomed{overflow:hidden;overscroll-behavior:none;touch-action:none}",
       ".viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:hidden}",
@@ -1996,6 +2122,8 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".tabs button.active{color:var(--primary-color,#03a9d9);background:color-mix(in srgb,var(--primary-color,#03a9d9) 9%,var(--card-background-color,#fff))}",
       ".zoom-toast{position:absolute;z-index:40;left:50%;top:calc(68px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(30,34,38,.9);color:#fff;font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
+      "@keyframes lider-refresh-spin{to{transform:rotate(360deg)}}",
+      "@media (prefers-reduced-motion:reduce){.refresh.refresh-busy ha-icon{animation:none}.refresh.refresh-busy{background:color-mix(in srgb,var(--primary-color,#03a9d9) 12%,var(--card-background-color,#fff))}}",
       "@media (max-width:560px){.scene-heading p{white-space:nowrap}.scene-phase.side-input{width:31%}.input-metrics{grid-template-columns:1fr;gap:3px}.side-input .scene-reading,.side-input .scene-power{padding:3px;gap:1px}.side-input .scene-reading span,.side-input .scene-power span{line-height:1.05}.side-input .scene-reading b,.side-input .scene-power b{line-height:1.15}.scene-phase.side-output{padding-block:7px;gap:4px}.side-output .scene-reading{padding:5px 3px}}",
       "@container nikas-panel (min-width:600px){.canvas{padding-inline:16px}}",
       "@container nikas-panel (min-width:1024px){.canvas{padding-inline:24px}}",
