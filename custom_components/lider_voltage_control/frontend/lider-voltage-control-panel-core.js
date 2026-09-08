@@ -35,7 +35,7 @@ const HISTORY_MAX_POINTS_PER_SERIES = 360;
 const HISTORY_REQUEST_TIMEOUT_MS = 60_000;
 const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
-const LIDER_UI_VERSION = "0.8.5";
+const LIDER_UI_VERSION = "0.8.6";
 const PANEL_TITLE = "Электросеть";
 const SAFE_DEFAULT_ROUTE = "/dashboard-infrastructure/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
@@ -559,10 +559,10 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _sceneReading(label, entityId, policy) {
     const reading = this._reading(entityId);
-    const severity = reading.available ? this._severity(reading.value, policy) : "unavailable";
+    const severity = this._readingSeverity(reading, policy);
     return '<button class="scene-reading ' + severity + '" data-entity="' + entityId + '">' +
       '<span>' + label + '</span><b>' +
-      (reading.available ? this._number(reading.value) + ' В' : 'Нет данных') +
+      this._voltageText(reading) +
     '</b></button>';
   }
 
@@ -624,10 +624,10 @@ class LiderVoltageControlPanel extends HTMLElement {
       .includes(String(state.state).toLowerCase());
     const available = rawAvailable && (!requiresInput || this._inputTelemetryState() === "ok");
     const reading = policy ? this._reading(entityId) : null;
-    const severity = !available ? "unavailable" : (policy ? this._severity(reading.value, policy) : "neutral");
+    const severity = !available ? "unavailable" : (policy ? this._readingSeverity(reading, policy) : "neutral");
     const entityAttr = entityId ? ' data-entity="' + entityId + '"' : '';
     const value = available
-      ? (policy ? this._number(reading.value) + ' В' : this._stateText(entityId))
+      ? (policy ? this._voltageText(reading) : this._stateText(entityId))
       : 'Нет данных';
     return '<button class="metric phase-measurement ' + severity + '"' + entityAttr + '>' +
       '<span class="metric-label">' + label + '</span>' +
@@ -1072,11 +1072,11 @@ class LiderVoltageControlPanel extends HTMLElement {
     const reading = this._reading(entityId);
     const inputAvailable = policy !== "before" || this._inputTelemetryState() === "ok";
     const available = reading.available && inputAvailable;
-    const severity = available ? this._severity(reading.value, policy) : "unavailable";
+    const severity = available ? this._readingSeverity(reading, policy) : "unavailable";
     const entityAttr = entityId ? ' data-entity="' + entityId + '"' : '';
     return '<button class="metric ' + severity + (large ? ' large' : '') + '"' + entityAttr + '>' +
       '<span class="metric-label">' + label + '</span>' +
-      '<strong>' + (available ? this._number(reading.value) + ' В' : 'Нет данных') + '</strong>' +
+      '<strong>' + (available ? this._voltageText(reading) : 'Нет данных') + '</strong>' +
       '<small>' + this._severityLabel(severity) + '</small>' +
     '</button>';
   }
@@ -1121,10 +1121,11 @@ class LiderVoltageControlPanel extends HTMLElement {
     const unit = this._displayUnit(state.attributes?.unit_of_measurement);
     if (Number.isFinite(value)) {
       const digits = unit === 'Вт' || unit === '%' ? 0 : 1;
-      return new Intl.NumberFormat(this._hass?.locale?.language || 'ru', {
+      const text = new Intl.NumberFormat(this._hass?.locale?.language || 'ru', {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
       }).format(value) + (unit ? ' ' + unit : '');
+      return text + (this._stateQuality(state) === "stale" ? ' · устарело' : '');
     }
     return String(state.state);
   }
@@ -1148,17 +1149,45 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _entityBadge(entityId, policy) {
     const reading = this._reading(entityId);
-    const severity = reading.available ? this._severity(reading.value, policy) : "unavailable";
+    const severity = this._readingSeverity(reading, policy);
     return '<span class="badge ' + severity + '">' + this._severityLabel(severity) + '</span>';
   }
 
   _reading(entityId) {
     const state = this._displayState(entityId);
     if (!state || ["unknown", "unavailable", "none", ""].includes(String(state.state).toLowerCase())) {
-      return { available: false, value: null };
+      return { available: false, value: null, quality: "unavailable", reportedAt: null };
     }
     const value = Number(state.state);
-    return Number.isFinite(value) ? { available: true, value } : { available: false, value: null };
+    const reportedAt = state._nikasTelemetryReportedAt ?? this._stateReportedAt(state);
+    return Number.isFinite(value)
+      ? {
+          available: true,
+          value,
+          quality: this._stateQuality(state),
+          reportedAt,
+        }
+      : { available: false, value: null, quality: "unavailable", reportedAt: null };
+  }
+
+  _stateQuality(state) {
+    if (state?._nikasTelemetryQuality === "stale") return "stale";
+    const reportedAt = state?._nikasTelemetryReportedAt ?? this._stateReportedAt(state);
+    return Number.isFinite(reportedAt) && Date.now() - reportedAt > this._staleAfterMs()
+      ? "stale"
+      : "current";
+  }
+
+  _readingSeverity(reading, policy) {
+    if (!reading.available) return "unavailable";
+    if (reading.quality === "stale") return "stale";
+    return this._severity(reading.value, policy);
+  }
+
+  _voltageText(reading) {
+    if (!reading.available) return "Нет данных";
+    return this._number(reading.value) + " В" +
+      (reading.quality === "stale" ? " · устарело" : "");
   }
 
   _severity(value, policy) {
@@ -1180,12 +1209,13 @@ class LiderVoltageControlPanel extends HTMLElement {
       attention: "Внимание",
       significant: "Существенное отклонение",
       emergency: "Авария",
+      stale: "Данные устарели",
       unavailable: "Нет данных",
     }[severity] || "Нет данных";
   }
 
   _worst(values) {
-    for (const severity of ["emergency", "significant", "attention", "unavailable", "normal"]) {
+    for (const severity of ["emergency", "significant", "attention", "unavailable", "stale", "normal"]) {
       if (values.includes(severity)) return severity;
     }
     return "unavailable";
@@ -1226,12 +1256,12 @@ class LiderVoltageControlPanel extends HTMLElement {
   }
 
   _telemetryFreshness() {
-    const connection = this._connectionState();
-    const updatedAt = this._lastSuccessfulTelemetryAt();
-    if (connection === "unknown" || !updatedAt) {
+    const readings = this._requiredVoltageEntityIds().map((entityId) => this._reading(entityId));
+    if (readings.some((reading) => !reading.available || !Number.isFinite(reading.reportedAt))) {
       return { key: "unknown", className: "freshness-unknown", label: "Нет данных" };
     }
-    if (connection === "offline" || Date.now() - updatedAt > this._staleAfterMs()) {
+    if (readings.some((reading) => reading.quality === "stale" ||
+        Date.now() - reading.reportedAt > this._staleAfterMs())) {
       return { key: "stale", className: "freshness-stale", label: "Данные устарели" };
     }
     return { key: "fresh", className: "freshness-current", label: "Данные актуальны" };
@@ -1267,31 +1297,31 @@ class LiderVoltageControlPanel extends HTMLElement {
     ])];
   }
 
+  _requiredVoltageEntityIds() {
+    return Object.values(ENTITY_MAP.before);
+  }
+
   _displayState(entityId) {
     const live = this._hass?.states?.[entityId];
     if (live && !["unknown", "unavailable", "none", ""]
-      .includes(String(live.state).toLowerCase())) return live;
+      .includes(String(live.state).toLowerCase())) return {
+        ...live,
+        _nikasTelemetryQuality: "current",
+        _nikasTelemetryReportedAt: this._stateReportedAt(live),
+      };
     const snapshot = this._telemetrySnapshot.values?.[entityId];
     return snapshot ? {
       state: snapshot.state,
       attributes: { unit_of_measurement: snapshot.unit || "" },
       last_reported: snapshot.reportedAt ? new Date(snapshot.reportedAt).toISOString() : null,
+      _nikasTelemetryQuality: "stale",
+      _nikasTelemetryReportedAt: Number(snapshot.reportedAt) || null,
     } : live;
   }
 
   _stateReportedAt(state) {
     const timestamp = Date.parse(state?.last_reported || state?.last_updated || "");
     return Number.isFinite(timestamp) ? timestamp : null;
-  }
-
-  _lastSuccessfulTelemetryAt() {
-    const reported = this._telemetryEntityIds()
-      .map((entityId) => this._hass?.states?.[entityId])
-      .filter((state) => state && !["unknown", "unavailable", "none", ""]
-        .includes(String(state.state).toLowerCase()))
-      .map((state) => this._stateReportedAt(state))
-      .filter(Number.isFinite);
-    return Math.max(this._telemetrySnapshot.updatedAt || 0, ...reported) || null;
   }
 
   _captureTelemetrySnapshot() {
@@ -1349,7 +1379,7 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _entitySeverity(entity, policy) {
     const reading = this._reading(entity);
-    return reading.available ? this._severity(reading.value, policy) : "unavailable";
+    return this._readingSeverity(reading, policy);
   }
 
   _number(value) {
@@ -1625,6 +1655,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".raw-empty{margin:0;padding:8px 2px;font-size:13px;color:var(--secondary-text-color,#68737d)}",
       ".normal{color:var(--success-color,#2e7d32);background:color-mix(in srgb,var(--success-color,#2e7d32) 11%,#fff);border-color:color-mix(in srgb,var(--success-color,#2e7d32) 30%,transparent)}",
       ".attention{color:var(--warning-color,#ed8b00);background:color-mix(in srgb,var(--warning-color,#ed8b00) 12%,#fff);border-color:color-mix(in srgb,var(--warning-color,#ed8b00) 32%,transparent)}",
+      ".stale{color:var(--warning-color,#ed8b00);background:color-mix(in srgb,var(--warning-color,#ed8b00) 8%,#fff);border-color:color-mix(in srgb,var(--warning-color,#ed8b00) 24%,transparent)}",
       ".significant{color:#d96500;background:#fff1e5;border-color:#efad71}",
       ".emergency{color:var(--error-color,#d32f2f);background:color-mix(in srgb,var(--error-color,#d32f2f) 10%,#fff);border-color:color-mix(in srgb,var(--error-color,#d32f2f) 30%,transparent)}",
       ".neutral{color:var(--primary-text-color,#17191c);background:color-mix(in srgb,var(--primary-color,#03a9d9) 6%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 18%,var(--divider-color,#dfe3e8))}",

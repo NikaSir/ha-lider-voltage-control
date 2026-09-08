@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.7
+
+- Preserves measurement value, quality and timestamp when live telemetry becomes unavailable.
+- Marks cached values as stale and prevents them from receiving a green normal status.
+- Computes aggregate freshness across all three required input-voltage phases, independently from connection state and unrelated fresh current or power samples.
+- Covers one-phase loss and recovery with a regression scenario and raises the panel UI to 0.8.6 without changing the approved layout or read-only behavior.
+
 ## 0.8.6
 
 - Fits both Header title lines inside the canonical 52 px plaque by removing the legacy flex gap and subtitle margin.
