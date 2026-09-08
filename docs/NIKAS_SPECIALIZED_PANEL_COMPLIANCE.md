@@ -1,6 +1,6 @@
 # LIDER compliance with NikaS UI v2.2 / Navigation Contract v1.2 / rule 1.17
 
-Version under review: integration `0.8.6`, panel UI `0.8.5`.
+Version under review: integration `0.8.8`, panel UI `0.8.7`.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
@@ -24,15 +24,18 @@ Version under review: integration `0.8.6`, panel UI `0.8.5`.
 | Header explicit-route precedence | PASS | The first valid route is selected from `return_to`, then `from`; an invalid first parameter cannot suppress the second. |
 | Header focus and pressed states | PASS | The centered semantic button has persistent `:focus-visible` and `:active` treatments. |
 | Strict source hand-off | PASS | Route and timestamp are required together and invalid, stale or future hand-offs fail closed before saved/referrer/configured fallbacks. |
-| Data truth and command policy | PASS | The panel is read-only; fixed verified contract points and registry-discovered related entities never fabricate missing values, related IDs or healthy states. |
+| Data truth and command policy | PASS | The panel remains device-command-free; its only service call is read-only `homeassistant.update_entity` for existing fixed or registry-discovered telemetry entities. Missing values, related IDs, healthy states and freshness are never fabricated. |
+| Refresh Action Contract v1.1 | PASS | The production bundle is exercised through the mounted click handler: real telemetry request, 900 ms minimum busy state, duplicate guard, 1400 ms success/error result, partial failure, retry/timer isolation, reduced motion, ARIA state and disconnect cleanup. |
+| Refresh phone/browser acceptance | GAP | On the target phone, verify fast success, slow success, rejected/offline refresh and retry during the result interval; the 44 px Header plaque, title, active tab, scroll and zoom must remain unchanged. |
+| Panel Lifecycle Contract v1.0 | PASS | Unit test proves foreign-route collision preservation, idempotent owned registration, restoration of a vanished owned route and exact-owner-only unload. Panel registration precedes all device I/O because this panel-only integration performs none during setup. |
 | Initial loading surface | PASS | Fixed Header, deterministic loading skeleton and Bottom Tab Bar mount before the first `hass` update; no blank startup canvas. |
 | Diagnostics completeness | PASS | All enabled state-bearing entities of the bound devices, raw attributes, timestamps and context. |
 | Autonomous frontend delivery | PASS | Deterministic self-contained production bundle with no runtime imports. |
 | Statistics grouping | PASS | `До стабилизаторов`, `После стабилизаторов`, then the non-interruptible line; generation/export excluded. History uses authenticated Recorder REST data and autonomous SVG rather than unavailable Lovelace-only helpers. |
 | Statistics request lifecycle | PASS | Each period owns one cached load; graphs are requested with concurrency 2, telemetry and period switching cannot duplicate it, each graph has a 60-second terminal timeout, and Header refresh explicitly replaces only the active load. |
-| Repository checks | PASS | Local syntax, version parity, bundle, contract and stable-DOM checks pass; the publication PR must repeat them. |
+| Repository checks | PASS | Local syntax, version parity, deterministic bundle, stable-DOM, refresh-action, route-lifecycle and NikaS 2.2 contract checks pass; the publication PR must repeat them. |
 | HACS/Hassfest | PENDING | Must pass on the publication PR and merge commit. |
 | iPhone Pro Max portrait shell acceptance | PASS | User accepted v0.8.0 on a real phone: fixed chrome, native/inertial work scrolling, short views, ten tab switches, pinch/reset and telemetry updates all passed without movement, white frames or flicker. |
 | Recorder history phone acceptance | GAP | v0.8.3 must confirm `24h → 7d → 24h → 7d` on the target phone: completed graphs appear progressively, returning to a period does not restart it, and every graph reaches data/no-records/Recorder-unavailable without indefinite loading. |
 
-The remaining phone GAP is limited to the new Recorder graph path. The fixed shell and interaction baseline do not require repeat redesign; regression acceptance still checks that opening and changing history periods leaves Header, Bottom Tab Bar, zoom and telemetry updates stable.
+The approved 0.8.3 visual composition and previously accepted fixed-shell behavior are unchanged. Remaining physical evidence is limited to Recorder period switching and the new refresh result states; both checks must leave Header, Bottom Tab Bar, active tab, scroll and zoom stable.

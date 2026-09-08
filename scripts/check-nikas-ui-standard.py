@@ -40,6 +40,8 @@ def main() -> None:
         baseline = f"Normative baseline:** NikaS Specialized Panel UI Standard v{config['version']}"
         require(baseline in knowledge_base, "engineering knowledge base baseline does not match the canonical standard")
         require("### 2.10 Peer status and selection are different facts" in knowledge_base, "knowledge base is missing the v2.2 peer-status lesson")
+        require("### 2.12 Refresh needs a visible completion result" in knowledge_base, "knowledge base is missing the refresh-result lesson")
+        require("### 3.3.1 Panel existence is application infrastructure" in knowledge_base, "knowledge base is missing the panel-lifecycle lesson")
     digest = hashlib.sha256(standard.encode("utf-8")).hexdigest()
     require(digest == config.get("standard_sha256"), "local NikaS UI standard is not the canonical v2.2 copy")
     navigation_contract = read_relative(config["navigation_contract_path"])
@@ -87,6 +89,10 @@ def main() -> None:
         "Unchanged lamp state produces no DOM write.",
         "icon no larger than `26px`",
         "canonical glyph size is `26px`",
+        "Refresh — busy, success and error",
+        "NIKAS_REFRESH_ACTION_CONTRACT.md",
+        "Panel lifecycle and availability",
+        "NIKAS_PANEL_LIFECYCLE_CONTRACT.md",
     ):
         require(clause in standard, f"canonical Header-return clause missing: {clause}")
 
@@ -146,6 +152,88 @@ def main() -> None:
     require(lamp.get("selection_is_independent") is True, "selection and device health must remain independent")
     require(lamp.get("update_mode") == "point-patch", "status lamps must use point-only DOM updates")
     require(lamp.get("accessible_status_required") is True, "status lamps require accessible text")
+
+    refresh = config.get("refresh_action_feedback", {})
+    require(refresh.get("version") == "1.1", "NikaS refresh action contract version must be 1.1")
+    require(refresh.get("status") == "required", "refresh action contract must be required")
+    require(refresh.get("minimum_visible_ms") == 900, "refresh busy state must remain visible for 900 ms")
+    require(refresh.get("busy_until") == "request_settled_and_minimum_elapsed", "refresh busy completion rule drift")
+    require(refresh.get("duplicate_activation") == "blocked", "refresh must remain single-flight while busy")
+    require(refresh.get("freshness") == "accepted_sample_only", "refresh must not fabricate telemetry freshness")
+    require(refresh.get("update_mode") == "point-patch", "refresh feedback must patch the mounted DOM")
+    completion = refresh.get("completion_feedback", {})
+    require(completion.get("visible_ms") == 1400, "refresh result must remain visible for 1400 ms")
+    require(completion.get("success_icon") == "mdi:check", "refresh success icon drift")
+    require(completion.get("success_color") == "#43a047", "refresh success color drift")
+    require(completion.get("error_icon") == "mdi:alert-circle-outline", "refresh error icon drift")
+    require(completion.get("error_color") == "#e53935", "refresh error color drift")
+    require(completion.get("success_semantics") == "all_required_requests_explicitly_succeeded", "refresh success must be truthful")
+    require(completion.get("retry_during_result") is True, "refresh result must allow retry")
+    require(completion.get("cancel_previous_timer_on_retry") is True, "refresh retry must isolate old timers")
+    require(completion.get("disconnect_cleanup") is True, "refresh timers must be cleared on disconnect")
+    refresh_contract = read_relative(refresh["path"])
+    refresh_digest = hashlib.sha256(refresh_contract.encode("utf-8")).hexdigest()
+    require(refresh_digest == refresh.get("sha256"), "local NikaS refresh action contract hash drift")
+    required_refresh_cases = [
+        "activation",
+        "fast_success",
+        "slow_success",
+        "duplicate_activation",
+        "failure_cleanup",
+        "unavailable_targets",
+        "render_stability",
+        "context_preservation",
+        "reduced_motion",
+        "truthful_freshness",
+        "result_presentation",
+        "retry_during_result",
+        "partial_failure",
+        "disconnect_cleanup",
+    ]
+    require(refresh.get("required_cases") == required_refresh_cases, "refresh regression cases drift")
+    for number in range(1, 8):
+        require(f"### REFRESH-{number:02d} — " in refresh_contract, f"canonical refresh clause REFRESH-{number:02d} missing")
+    for case in required_refresh_cases:
+        require(f"| `{case}` |" in refresh_contract, f"canonical refresh regression case missing: {case}")
+
+    lifecycle = config.get("panel_lifecycle", {})
+    require(lifecycle.get("version") == "1.0", "NikaS panel lifecycle contract version must be 1.0")
+    require(lifecycle.get("status") == "required", "panel lifecycle contract must be required")
+    require(lifecycle.get("registration_before_device_io") is True, "panel route must precede fallible device I/O")
+    require(lifecycle.get("initial_failure") == "panel_remains_registered", "initial failure must preserve the panel route")
+    require(lifecycle.get("unavailable_rendering") == "fail_closed", "offline panel content must fail closed")
+    require(lifecycle.get("recovery") == "coordinator_or_config_entry_retry", "panel recovery must use the backend retry lifecycle")
+    lifecycle_contract = read_relative(lifecycle["path"])
+    lifecycle_digest = hashlib.sha256(lifecycle_contract.encode("utf-8")).hexdigest()
+    require(lifecycle_digest == lifecycle.get("sha256"), "local NikaS panel lifecycle contract hash drift")
+    required_lifecycle_cases = [
+        "registration_before_refresh",
+        "initial_failure_preserves_route",
+        "offline_bootstrap",
+        "retry_recovery",
+        "route_collision",
+        "unload_ownership",
+        "generated_manifest_ownership",
+    ]
+    require(lifecycle.get("required_cases") == required_lifecycle_cases, "panel lifecycle regression cases drift")
+    for clause in (
+        "LIFECYCLE-01",
+        "LIFECYCLE-02",
+        "LIFECYCLE-03",
+        "LIFECYCLE-04",
+        "LIFECYCLE-05",
+        "LIFECYCLE-06",
+        "LIFECYCLE-07",
+        "LIFECYCLE-08",
+        "async_config_entry_first_refresh()",
+        "Hardware evidence is required only",
+    ):
+        require(clause in lifecycle_contract, f"canonical panel lifecycle clause missing: {clause}")
+    require(
+        "NIKAS_PANEL_LIFECYCLE_CONTRACT.md" in standard
+        and "configured panel route is application infrastructure" in standard,
+        "UI standard must require the panel lifecycle companion",
+    )
 
     role = config.get("role")
     require(role in {"registry", "base", "specialized", "readiness"}, f"unsupported NikaS UI role: {role}")
@@ -215,7 +303,7 @@ def main() -> None:
             "/dashboard-actions/home",
             "/dashboard-infrastructure/overview",
             "/dashboard-access-v1/home",
-            "/dashboard-water-accounting",
+            "/dashboard-water",
         ):
             require(route in route_registry_text, f"canonical route missing from registry: {route}")
         return

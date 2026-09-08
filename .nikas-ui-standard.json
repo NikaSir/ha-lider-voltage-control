@@ -2,9 +2,9 @@
   "version": "2.2",
   "navigation_contract_version": "1.2",
   "standard_path": "docs/NIKAS_SPECIALIZED_PANEL_UI_STANDARD.md",
-  "standard_sha256": "3b6cc750b08aa0d2a375d1430ea04ac68c90525a527d197b014abd96728d23d1",
+  "standard_sha256": "4d2edb4e2114b1317e668423850dbec0e2d9604550433fcbb2990e93ad00cbe0",
   "navigation_contract_path": "docs/NIKAS_PANEL_NAVIGATION_CONTRACT.md",
-  "navigation_contract_sha256": "d495eca80345b96976c168029a96146803f3d8195b6f6fc723827b601ffb578e",
+  "navigation_contract_sha256": "79923d2de82ef59ab76e37491f75ba7eb7e7c4c23e62d75142744159cae64229",
   "knowledge_base_path": "docs/NIKAS_ENGINEERING_KNOWLEDGE_BASE.md",
   "frontend_delivery_path": "docs/SPECIALIZED_PANEL_FRONTEND_RELEASE_STANDARD.md",
   "role": "specialized",
@@ -24,7 +24,7 @@
     "delivery": "vendored-build-time",
     "runtime_dependency": false
   },
-  "ui_version": "0.8.6",
+  "ui_version": "0.8.7",
   "web_component": "lider-voltage-control-panel",
   "bundle_contract": {
     "autonomous": true,
@@ -37,8 +37,10 @@
     "unknown_unavailable": "explicit",
     "invented_entity_ids": false,
     "fixed_entity_ids": "tested_public_contract_only",
-    "command_policy": "read_only",
-    "forbidden_command_markers": [".callService("]
+    "command_policy": "refresh_only",
+    "command_markers": [
+      "this._hass.callService(\n      \"homeassistant\",\n      \"update_entity\""
+    ]
   },
   "header_return": {
     "button_marker": "class=\"title title-return\"",
@@ -98,6 +100,86 @@
     "multitouch_passthrough": true,
     "movement_threshold_px": 4,
     "cleanup_on_disconnect": true
+  },
+  "refresh_action_feedback": {
+    "version": "1.1",
+    "status": "required",
+    "applies_when": "refresh_action_present",
+    "path": "docs/NIKAS_REFRESH_ACTION_CONTRACT.md",
+    "sha256": "69f73e9d5949a2564f2bcef3059039cc339c12c9e8dfe71cfa9f24a45b78d2a8",
+    "busy_animation": "rotate",
+    "minimum_visible_ms": 900,
+    "busy_until": "request_settled_and_minimum_elapsed",
+    "duplicate_activation": "blocked",
+    "aria_busy": true,
+    "failure_notification": true,
+    "reduced_motion": "static_busy_surface",
+    "execution_scope": "read_only_telemetry",
+    "freshness": "accepted_sample_only",
+    "update_mode": "point-patch",
+    "preserve": [
+      "header",
+      "active_tab",
+      "peer",
+      "work_viewport",
+      "scroll",
+      "zoom",
+      "editor_draft"
+    ],
+    "test_source": "production_entrypoint",
+    "required_cases": [
+      "activation",
+      "fast_success",
+      "slow_success",
+      "duplicate_activation",
+      "failure_cleanup",
+      "unavailable_targets",
+      "render_stability",
+      "context_preservation",
+      "reduced_motion",
+      "truthful_freshness",
+      "result_presentation",
+      "retry_during_result",
+      "partial_failure",
+      "disconnect_cleanup"
+    ],
+    "browser_acceptance_required": true,
+    "completion_feedback": {
+      "visible_ms": 1400,
+      "success_icon": "mdi:check",
+      "success_color": "#43a047",
+      "error_icon": "mdi:alert-circle-outline",
+      "error_color": "#e53935",
+      "idle_icon": "mdi:refresh",
+      "idle_color": "var(--primary-color)",
+      "success_semantics": "all_required_requests_explicitly_succeeded",
+      "retry_during_result": true,
+      "cancel_previous_timer_on_retry": true,
+      "preserve_result_deadline_on_render": true,
+      "disconnect_cleanup": true,
+      "geometry_unchanged": true,
+      "accessible_result_name": true
+    }
+  },
+  "panel_lifecycle": {
+    "version": "1.0",
+    "status": "required",
+    "path": "docs/NIKAS_PANEL_LIFECYCLE_CONTRACT.md",
+    "sha256": "939b58f7451d0819ad155975466162383e74c99c78040107f88cf667673ea32a",
+    "route_owner": "installed_configuration",
+    "registration_before_device_io": true,
+    "initial_failure": "panel_remains_registered",
+    "unavailable_rendering": "fail_closed",
+    "recovery": "coordinator_or_config_entry_retry",
+    "required_cases": [
+      "registration_before_refresh",
+      "initial_failure_preserves_route",
+      "offline_bootstrap",
+      "retry_recovery",
+      "route_collision",
+      "unload_ownership",
+      "generated_manifest_ownership"
+    ]
   },
   "peer_device_status_lamp_reference": {
     "implementation": "Stark SolarPower",

@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.8.6",
+  "ui_version": "0.8.7",
   "template_version": "2.2",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -45,6 +45,17 @@
     "header_icon_px": 25,
     "header_refresh_on_card": true,
     "header_refresh_tone": "primary",
+    "header_refresh_action": {
+      "service": "homeassistant.update_entity",
+      "scope": "existing_related_telemetry",
+      "single_flight_while_busy": true,
+      "minimum_busy_ms": 900,
+      "result_ms": 1400,
+      "success": "green_check",
+      "failure": "red_error_with_message",
+      "reduced_motion": "static_busy_surface",
+      "update_mode": "point_patch"
+    },
     "bottom_tabs": ["overview", "before", "after", "history", "diagnostics"],
     "bottom_tabs_single_row": true,
     "bottom_tab_columns": 5,
@@ -132,5 +143,11 @@
     "stale_after_poll_periods": 3,
     "default_poll_period_seconds": 30,
     "preserve_last_successful_snapshot": true
+  },
+  "panel_lifecycle": {
+    "route_owner": "installed_configuration",
+    "registration_before_device_io": true,
+    "initial_failure": "panel_remains_registered",
+    "unload": "remove_owned_route_only"
   }
 }

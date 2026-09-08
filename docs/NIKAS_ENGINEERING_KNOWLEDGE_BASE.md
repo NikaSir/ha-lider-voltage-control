@@ -103,6 +103,58 @@ A selector button answers which peer device is open. Its status lamp answers whe
 
 **Correct model:** retain one persistent 9px lamp per peer device with a subtle 3px halo. Green means healthy and current, orange means a documented warning or degraded/reserve state, red means confirmed fault/offline, and gray means unknown or incomplete data. Classification fails closed in the priority fault → warning → healthy → unknown. Selection styling remains independent. Updates patch only lamp color and accessible status text without rebuilding the selector or shell.
 
+
+### 2.11 Peer selector geometry has one visual reference
+
+Different panels implemented the same peer-device selector as a shared segmented pill, independent cards, or compressed labels. Even when all variants remained usable, the changing frame made the NikaS shell look inconsistent and encouraged selection styling to absorb device health.
+
+**Proven reference:** StarLine UI v0.6.8.
+
+**Correct model for two peers:**
+
+- one 52px selector row immediately below Header and outside the work viewport;
+- the row itself has no shared card surface, border, radius or shadow;
+- horizontal inset is at least 12px plus the relevant safe-area inset;
+- two equal-width independent buttons separated by an 8px gap;
+- each button is 44px high, has a 1px border, a 15px radius and the ordinary card surface;
+- content is left aligned: persistent 9px status lamp with a subtle 3px halo, then one-line peer name;
+- the selected button uses primary-colored text, a primary-color border at about 65% strength and a primary-color surface at about 10% strength;
+- device health never recolors the selected surface: health changes only the lamp and accessible status text;
+- long peer names use one-line ellipsis and must not change button height or selector topology.
+
+More than two peers may use another explicitly approved adaptive composition only when the 44px touch target and legible names remain intact. Do not squeeze unreadable labels into the two-peer reference geometry.
+
+---
+
+### 2.12 Refresh needs a visible completion result
+
+The user accepted the green completion check in Climate UI 1.4.17, then reported
+its absence in the vacuum and irrigation panels. Rotation alone shows that a
+request is running; an immediate return to the arrow makes its outcome unclear.
+Another S8 failure showed that a generic loading CSS class could distort the
+Header button. Use a button-specific state class and preserve plaque geometry.
+
+**Correct model:** one mounted button, four states:
+`idle → busy → success/error → idle`. Follow
+[Refresh Action Contract v1.1](NIKAS_REFRESH_ACTION_CONTRACT.md):
+
+- busy begins immediately, lasts at least 900 ms and until the request settles;
+- explicit success shows green `mdi:check` for 1400 ms;
+- failure shows red `mdi:alert-circle-outline` for 1400 ms and an error message;
+- the result interval ends by restoring the arrow, with no layout shift;
+- duplicate requests are blocked while busy; retry during a result clears its old
+  timer so it cannot overwrite the new request;
+- HA updates and tab changes preserve the result and its original deadline;
+- accessible names and static reduced-motion states explain progress/outcome;
+- only an accepted factual sample changes telemetry freshness. A resolved promise
+  carrying `false`, a swallowed exception or partial failure is not success.
+
+Completion presentation was added in
+[S8 OMNI 1.0.4, PR #129](https://github.com/NikaSir/ha-s8-omni/pull/129) and
+[HO-SC-8W 1.0.1, PR #175](https://github.com/NikaSir/ha-ho-sc-8w/pull/175).
+Product tests and browser checks are evidence for the tested cases only; these
+references do not certify the entire contract or replace physical acceptance.
+
 ---
 
 ## 3. Integration architecture
@@ -134,6 +186,15 @@ For polled integrations:
 - failed polls do not erase the last good sample, but mark it stale;
 - expensive work is not duplicated by each entity or panel subscriber;
 - listeners receive already-normalized domain state.
+
+### 3.3.1 Panel existence is application infrastructure
+
+A configured panel route is registered before fallible device or cloud I/O. Device
+reachability changes the panel's content to an explicit unavailable/no-data state; it
+does not remove the application surface. First-refresh helpers may still govern
+entity setup or config-entry retry, but never route existence. Registration,
+collision handling, retries and unload ownership follow
+`NIKAS_PANEL_LIFECYCLE_CONTRACT.md`.
 
 ### 3.4 Unknown and unavailable are first-class states
 
@@ -451,7 +512,9 @@ Automate where practical:
 - period history calls are single-flight/cached;
 - max history concurrency is enforced;
 - command duplicate submission is blocked;
-- unknown/unavailable data does not become healthy.
+- refresh success/error glyphs last 1400 ms, survive telemetry patches and cannot be reset by an old timer during a newer request;
+- unknown/unavailable data does not become healthy;
+- the two-peer selector keeps the StarLine reference geometry (52px row, 44px independent buttons, 8px gap) and patches status lamps independently of selection.
 
 ### 11.3 Real-device acceptance
 
@@ -468,6 +531,7 @@ Primary phone acceptance checks:
 - synthetic click suppressed after pinch;
 - telemetry updates do not flicker;
 - images/background do not reflash;
+- peer selector geometry and selection/status separation remain identical on phone, tablet and desktop;
 - history period switching does not freeze;
 - write confirmation and busy/error states behave correctly.
 
@@ -507,6 +571,9 @@ The following patterns are considered known regressions unless a new design prov
 - meaningful operational text below 12 px;
 - generic “Online” when transport/freshness distinction is required;
 - status represented by color only;
+- refresh silently returning to the arrow without showing its result, or displaying a green check after a failed/partial request;
+- a generic page-loading CSS class applied to a Header action and changing its geometry;
+- a shared outer pill around peer-device buttons, or selection styling driven by device health;
 - missing/unavailable rendered green or as zero;
 - guessed entity IDs;
 - write controls that claim success before state confirmation;
