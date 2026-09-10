@@ -50,6 +50,9 @@ jobs:
           node scripts/check-stable-dom.mjs
           node scripts/check-refresh-action.mjs
 
+      - name: Verify full HACS validation contract
+        run: python scripts/check-hacs-validation.py
+
       - name: Verify panel lifecycle
         run: python scripts/check-panel-lifecycle.py
 
