@@ -1,5 +1,10 @@
 # Changelog
 
+## Integration 0.8.9 / UI 0.8.8 — 2026-09-13
+
+- Main panel title now opens `/home/overview` regardless of opening source, query parameters, stored return routes, or referrer.
+- Adopt Navigation Contract v1.3 and refresh the autonomous frontend cache version.
+
 ## 0.8.8
 
 - Implements the NikaS Refresh Action Contract v1.1 with a real read-only `homeassistant.update_entity` request for existing related telemetry entities.
