@@ -1,10 +1,10 @@
 {
   "version": "2.2",
-  "navigation_contract_version": "1.2",
+  "navigation_contract_version": "1.3",
   "standard_path": "docs/NIKAS_SPECIALIZED_PANEL_UI_STANDARD.md",
-  "standard_sha256": "2a15e5c2483f0fa959faff54cd29144ddb8c392e6da4546bd4c5034bf652c2c7",
+  "standard_sha256": "e150c4ce087635c0cbc25031a6ce1b8489ba0902da3745335af88457484963dc",
   "navigation_contract_path": "docs/NIKAS_PANEL_NAVIGATION_CONTRACT.md",
-  "navigation_contract_sha256": "79923d2de82ef59ab76e37491f75ba7eb7e7c4c23e62d75142744159cae64229",
+  "navigation_contract_sha256": "04c81cb498de3bd9ac35b7e70ed8a90fa4376ed3a31bcedb1fe5cc3cb53e05a6",
   "knowledge_base_path": "docs/NIKAS_ENGINEERING_KNOWLEDGE_BASE.md",
   "frontend_delivery_path": "docs/SPECIALIZED_PANEL_FRONTEND_RELEASE_STANDARD.md",
   "role": "specialized",
@@ -20,11 +20,11 @@
   ],
   "source_kit": {
     "path": "templates/shell_v2/nikas-specialized-shell.js",
-    "sha256": "c7171560b68e2c4118b327c5e6a63c65e3410a4e1f10a02691e0d15560166e65",
+    "sha256": "b7dbb84bb2f950fce75591266d6de7dbff824f4d480f455f0b8cbb0866a1c176",
     "delivery": "vendored-build-time",
     "runtime_dependency": false
   },
-  "ui_version": "0.8.7",
+  "ui_version": "0.8.8",
   "web_component": "lider-voltage-control-panel",
   "bundle_contract": {
     "autonomous": true,
@@ -46,11 +46,7 @@
     "button_marker": "class=\"title title-return\"",
     "version_marker": "<small>UI v",
     "focus_marker": ".title-return:focus-visible",
-    "pressed_marker": ".title-return:active",
-    "explicit_precedence_marker": "...params.getAll(\"return_to\")",
-    "capture_once_marker": "this._returnRoute = captureNikasShellReturnRoute({",
-    "timestamp_required_marker": "if (!route || !timestamp) return null",
-    "future_timestamp_rejection_marker": "age < 0"
+    "pressed_marker": ".title-return:active"
   },
   "forbidden_runtime_markers": [
     "history.back("
@@ -75,7 +71,10 @@
     "content_max_width_px": 1280,
     "coordinate_tolerance_px": 2,
     "scroll_boundary_guard": "capture-non-passive-touchmove",
-    "specialized_tab_range": [3, 5],
+    "specialized_tab_range": [
+      3,
+      5
+    ],
     "viewport_matrix": {
       "phone_portrait": "430x932",
       "phone_landscape": "932x430",
@@ -87,7 +86,11 @@
   "panel_identity": {
     "title": "Электросеть",
     "device_model": "one_three_phase_LIDER_system",
-    "phases": ["L1", "L2", "L3"]
+    "phases": [
+      "L1",
+      "L2",
+      "L3"
+    ]
   },
   "peer_selector": {
     "present": false,
@@ -192,11 +195,22 @@
       "fault": "red",
       "unknown": "gray"
     },
-    "state_priority": ["fault", "warning", "good", "unknown"],
+    "state_priority": [
+      "fault",
+      "warning",
+      "good",
+      "unknown"
+    ],
     "selection_is_independent": true,
     "update_mode": "point-patch",
     "accessible_status_required": true,
     "applicable": false,
     "reason": "no_peer_device_selector"
+  },
+  "header_navigation": {
+    "contract_version": "1.3",
+    "mode": "declared-parent",
+    "main_parent_route": "/home/overview",
+    "ambient_return_authority": false
   }
 }

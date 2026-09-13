@@ -30,7 +30,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.7"',
+  'const LIDER_UI_VERSION = "0.8.8"',
   '.title{text-align:center;display:grid;place-content:center;line-height:1.08}',
   '.title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px',
   'const NIKAS_SHELL_V2_VERSION = "2.1"',
@@ -43,7 +43,7 @@ for (const marker of [
   'this._queueLiveUpdate()',
   'this._suppressClicksUntil = Date.now() + 500',
   'if (event.touches.length > 0) return',
-  '...params.getAll("return_to")',
+  'function captureNikasShellReturnRoute({ parentRoute } = {})',
   'if (!route || !timestamp) return null',
   'age < 0',
   'captureNikasShellReturnRoute',
@@ -208,38 +208,14 @@ if (context.shouldBlockBoundaryMove({
   deltaX: 14, deltaY: 4, inViewport: false, scrollTop: 0, scrollHeight: 0, clientHeight: 0,
 })) throw new Error("horizontal gestures must not be captured by the vertical boundary guard");
 
-context.window.location.search = "?return_to=https%3A%2F%2Fevil.example%2Fdashboard-house&from=%2Fdashboard-actions%2Foverview";
-if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-actions/home") {
-  throw new Error("an invalid return_to must not suppress a valid from route");
-}
-context.window.location.search = "";
-storage.clear();
-
-session.clear();
-session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
-if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-infrastructure/overview") {
-  throw new Error("a route without its timestamp must fail closed");
-}
-storage.clear();
-session.clear();
-session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
-session.set("nikas.specialized.source_route_at.v1", String(Date.now() + 1_000));
-if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-infrastructure/overview") {
-  throw new Error("a future hand-off timestamp must fail closed");
-}
-storage.clear();
-session.clear();
-session.set("nikas.specialized.source_route.v1", "/dashboard-actions/home");
-session.set("nikas.specialized.source_route_at.v1", String(Date.now()));
-if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-actions/home" ||
-    session.has("nikas.specialized.source_route.v1") ||
-    session.has("nikas.specialized.source_route_at.v1")) {
-  throw new Error("a valid hand-off pair must be consumed exactly once");
-}
-
-storage.set("nikas.lider.return_route.v1", "/dashboard-house-v13/overview");
-if (context.captureReturnRoute({ panelId: "lider", safeReturnRoute: "/dashboard-infrastructure/overview" }) !== "/dashboard-house-v13/home") {
-  throw new Error("saved Header return route must survive a panel reload");
+for (const source of ["/dashboard-actions/home", "/dashboard-house-v13/home", "/dashboard-rooms-v11/rooms"]) {
+  context.window.location.search = "?return_to="+source+"&from="+source;
+  storage.set("nikas.lider.return_route.v1", source);
+  session.set("nikas.specialized.source_route.v1", source);
+  session.set("nikas.specialized.source_route_at.v1", String(Date.now()));
+  if (context.captureReturnRoute({panelId: "lider", parentRoute: "/home/overview"}) !== "/home/overview") {
+    throw new Error("main title must ignore opening source, storage, and query");
+  }
 }
 
 const panel = new context.Panel();

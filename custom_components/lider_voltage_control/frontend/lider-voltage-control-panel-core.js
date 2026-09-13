@@ -37,9 +37,9 @@ const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
 const REFRESH_MIN_VISIBLE_MS = 900;
 const REFRESH_RESULT_VISIBLE_MS = 1_400;
-const LIDER_UI_VERSION = "0.8.7";
+const LIDER_UI_VERSION = "0.8.8";
 const PANEL_TITLE = "Электросеть";
-const SAFE_DEFAULT_ROUTE = "/dashboard-infrastructure/overview";
+const SAFE_DEFAULT_ROUTE = "/home/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
 
 function escapeHtml(value) {

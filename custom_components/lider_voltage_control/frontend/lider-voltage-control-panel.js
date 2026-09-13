@@ -12,6 +12,7 @@ const NIKAS_SOURCE_ROUTE_MAX_AGE_MS = 30_000;
 const NIKAS_SHELL_BOUNDARY_THRESHOLD_PX = 4;
 
 const NIKAS_BASE_ROUTES = Object.freeze([
+  Object.freeze({ root: "/home", entry: "/home/overview" }),
   Object.freeze({ root: "/dashboard-house-v13", entry: "/dashboard-house-v13/home" }),
   Object.freeze({ root: "/dashboard-rooms-v11", entry: "/dashboard-rooms-v11/rooms" }),
   Object.freeze({ root: "/dashboard-actions", entry: "/dashboard-actions/home" }),
@@ -259,33 +260,19 @@ function consumeNikasSourceHandoff(now = Date.now()) {
   return normalizeNikasBaseRoute(route);
 }
 
-function captureNikasShellReturnRoute({ panelId, parentRoute, safeReturnRoute }) {
-  const savedKey = `nikas.${panelId}.return_route.v1`;
-  const params = new URLSearchParams(window.location.search);
-  const handoff = consumeNikasSourceHandoff();
-  let saved = null;
+// Navigation contract v1.3: the declared hierarchy is the only authority.
+function captureNikasShellReturnRoute({ parentRoute } = {}) {
+  const overview = "/home/overview";
+  if (typeof parentRoute !== "string" || !parentRoute.startsWith("/")
+      || parentRoute.startsWith("//")) return overview;
   try {
-    saved = window.localStorage.getItem(savedKey);
+    const parent = new URL(parentRoute, window.location.origin);
+    if (parent.origin !== window.location.origin || parent.search || parent.hash
+        || parent.pathname === window.location.pathname) return overview;
+    return parent.pathname;
   } catch (_error) {
-    // Saved return routes are an optional convenience.
+    return overview;
   }
-  const candidates = [
-    ...params.getAll("return_to"),
-    ...params.getAll("from"),
-    handoff,
-    saved,
-    document.referrer,
-    parentRoute,
-    safeReturnRoute,
-  ];
-  const accepted = candidates.map(normalizeNikasBaseRoute).find(Boolean)
-    || NIKAS_BASE_ROUTES[0].entry;
-  try {
-    window.localStorage.setItem(savedKey, accepted);
-  } catch (_error) {
-    // The captured route remains stable for the mounted panel instance.
-  }
-  return accepted;
 }
 
 function rememberNikasSpecializedSourceRoute(destination) {
@@ -365,9 +352,9 @@ const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
 const REFRESH_MIN_VISIBLE_MS = 900;
 const REFRESH_RESULT_VISIBLE_MS = 1_400;
-const LIDER_UI_VERSION = "0.8.7";
+const LIDER_UI_VERSION = "0.8.8";
 const PANEL_TITLE = "Электросеть";
-const SAFE_DEFAULT_ROUTE = "/dashboard-infrastructure/overview";
+const SAFE_DEFAULT_ROUTE = "/home/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
 
 function escapeHtml(value) {
