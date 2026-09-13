@@ -66,8 +66,8 @@ jobs:
           import re
           from pathlib import Path
 
-          expected_integration = "0.8.8"
-          expected_ui = "0.8.7"
+          expected_integration = "0.8.9"
+          expected_ui = "0.8.8"
           expected_title = "Электросеть"
           manifest = json.loads(Path("custom_components/lider_voltage_control/manifest.json").read_text())
           panel_manifest = json.loads(Path("custom_components/lider_voltage_control/panel_manifest.json").read_text())
@@ -119,7 +119,7 @@ jobs:
           grep -F 'createNikasShellScrollBoundaryGuard' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
           grep -F '"present": false' custom_components/lider_voltage_control/panel_manifest.json
           ! grep -E '^[[:space:]]*import[[:space:]]' custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
-          grep -F '"header_center_action": "return_to_source_base_panel"' custom_components/lider_voltage_control/panel_manifest.json
+          grep -F '"header_center_action": "navigate_to_declared_parent"' custom_components/lider_voltage_control/panel_manifest.json
           grep -F '"diagnostics"' custom_components/lider_voltage_control/panel_manifest.json
           test -f custom_components/lider_voltage_control/brand/icon.png
           test -f custom_components/lider_voltage_control/frontend/assets/lider-room-background-v1.webp
@@ -138,4 +138,3 @@ jobs:
         run: |
           python scripts/check_standard_documents.py
           python tests/test_standard_document_sync.py
-
