@@ -1,5 +1,12 @@
 # Changelog
 
+## Integration 0.8.10 / UI 0.8.9 — 2026-09-14
+
+- Separates the Overview status header from the equipment photo scene without increasing the page height or reintroducing scroll at 100% zoom on regular phone viewports.
+- Places the photo below the title and 168×58 px two-level connection badge, backed by the approved 205 px primary-blue decorative circle.
+- Uses collision-free mobile grid placement for all three phase rows and a work-area-only scroll fallback on short viewports.
+- Keeps the persistent Header, Bottom Tab Bar, history, telemetry semantics, Navigation Contract v1.3 and point-update rendering unchanged.
+
 ## Integration 0.8.9 / UI 0.8.8 — 2026-09-13
 
 - Main panel title now opens `/home/overview` regardless of opening source, query parameters, stored return routes, or referrer.
