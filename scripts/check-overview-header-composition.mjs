@@ -85,8 +85,11 @@ const equipmentTag = overview.match(/<img class="installation-equipment"[^>]*>/)
 if (/role="img"/.test(installationTag)) {
   throw new Error("interactive overview content must not be nested in an image role");
 }
-if (!/alt="Три стабилизатора LIDER PS7500W-15/.test(equipmentTag) || /aria-hidden="true"/.test(equipmentTag)) {
+if (!/alt="Три стабилизатора LIDER PS-7500W-30/.test(equipmentTag) || /aria-hidden="true"/.test(equipmentTag)) {
   throw new Error("equipment image must expose its description without hiding phase controls");
+}
+if (!overview.includes("LIDER PS-7500W-30 · 3 шт.") || overview.includes("PS7500W-15")) {
+  throw new Error("overview must identify the installed LIDER PS-7500W-30 model");
 }
 
 for (const rule of [
@@ -103,18 +106,98 @@ for (const rule of [
   }
 }
 
-const compactRule = styles.match(/@container nikas-panel \(max-width:420px\)\{([^]*?)\}\s*$/)?.[1] ?? "";
-for (const compactLayoutRule of [
-  ".scene-heading h1{font-size:16px;overflow-wrap:anywhere}",
-  ".installation-scene{display:grid;grid-template-columns:31% minmax(0,1fr) 29%;grid-template-rows:repeat(3,minmax(78px,1fr)) 38px",
-  ".scene-phase{position:relative;top:auto;left:auto;right:auto;transform:none;width:100%",
-  ".scene-phase.phase-a{grid-row:1}.scene-phase.phase-b{grid-row:2}.scene-phase.phase-c{grid-row:3}",
-  ".scene-phase.side-input{grid-column:1}.scene-phase.side-output{grid-column:3}",
-  ".installation-caption{position:relative;grid-column:1/-1;grid-row:4",
-]) {
-  if (!compactRule.includes(compactLayoutRule)) {
-    throw new Error(`compact overview must use collision-free grid placement: ${compactLayoutRule}`);
+const mobileSceneRule = styles.match(/@container nikas-panel \(max-width:560px\)\{([^]*?)\}(?=@container nikas-panel \(max-width:420px\)|$)/)?.[1] ?? "";
+
+function computedClassStyle(cssText, classNames) {
+  const classes = new Set(classNames);
+  const result = new Map();
+  let order = 0;
+  for (const rule of cssText.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const selector of rule[1].split(",").map((value) => value.trim())) {
+      if (!/^\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/i.test(selector)) continue;
+      const required = [...selector.matchAll(/\.([a-z0-9_-]+)/gi)].map((match) => match[1]);
+      if (!required.every((className) => classes.has(className))) continue;
+      const specificity = required.length;
+      for (const declaration of rule[2].split(";")) {
+        const separator = declaration.indexOf(":");
+        if (separator < 0) continue;
+        const property = declaration.slice(0, separator).trim();
+        const value = declaration.slice(separator + 1).trim();
+        const previous = result.get(property);
+        if (!previous || specificity > previous.specificity ||
+            (specificity === previous.specificity && order >= previous.order)) {
+          result.set(property, { value, specificity, order });
+        }
+      }
+      order += 1;
+    }
   }
+  return Object.fromEntries([...result].map(([property, item]) => [property, item.value]));
+}
+
+const baseRules = styles.slice(0, styles.indexOf("@keyframes"));
+const compactCss = baseRules + mobileSceneRule;
+for (const classNames of [["canvas"], ["hero"], ["metric"], ["line-card"], ["raw-row"]]) {
+  const baseStyle = computedClassStyle(baseRules, classNames);
+  const phone430Style = computedClassStyle(baseRules + mobileSceneRule, classNames);
+  if (JSON.stringify(baseStyle) !== JSON.stringify(phone430Style)) {
+    throw new Error(`430px scene rules must not change .${classNames.join(".")} outside the photo scene`);
+  }
+}
+
+for (const [phaseName, gridRow] of [["a", "2"], ["b", "3"], ["c", "4"]]) {
+  const phaseStyle = computedClassStyle(compactCss, ["scene-phase", `phase-${phaseName}`, "side-input"]);
+  if (phaseStyle.position !== "relative" || phaseStyle.top !== "auto" ||
+      phaseStyle.transform !== "none" || phaseStyle["grid-row"] !== gridRow) {
+    throw new Error(`mobile phase ${phaseName.toUpperCase()} must occupy its own unshifted grid row`);
+  }
+}
+
+const metricLayout = computedClassStyle(compactCss, ["input-metrics"]);
+if (metricLayout.gap !== "6px") {
+  throw new Error("mobile power and voltage cards must have a 6px vertical gap");
+}
+
+const qualityLayout = computedClassStyle(compactCss, ["scene-quality"]);
+if (qualityLayout["font-size"] !== "12px" || qualityLayout["white-space"] !== "normal") {
+  throw new Error("stale quality must wrap below the value at readable size");
+}
+
+const telemetryPanel = new context.Panel();
+telemetryPanel._reading = () => ({
+  available: true,
+  value: 214,
+  quality: "stale",
+  reportedAt: 1,
+});
+telemetryPanel._number = (value) => Number(value).toFixed(1).replace(".", ",");
+telemetryPanel._inputTelemetryState = () => "ok";
+
+const staleSceneReading = telemetryPanel._sceneReading("Напряжение", "sensor.test", "quality");
+if (!staleSceneReading.includes("<b>214,0 В</b>") ||
+    !staleSceneReading.includes('<small class="scene-quality">Данные устарели</small>') ||
+    staleSceneReading.includes("· устарело")) {
+  throw new Error("stale scene reading must keep the voltage on one line and show quality below it");
+}
+
+const staleMetric = telemetryPanel._metricCard("Напряжение", "sensor.test", "quality");
+if (!staleMetric.includes("<strong>214,0 В</strong><small>Данные устарели</small>") ||
+    staleMetric.includes("· устарело")) {
+  throw new Error("metric card must not duplicate stale quality inside the voltage value");
+}
+
+telemetryPanel._displayState = () => ({
+  state: "320",
+  attributes: { unit_of_measurement: "W" },
+  _nikasTelemetryQuality: "stale",
+});
+telemetryPanel._hass = { locale: { language: "ru" } };
+const stalePower = telemetryPanel._scenePower("sensor.power");
+if (!stalePower.includes('class="scene-power stale"') ||
+    !stalePower.includes("<b>320 Вт</b>") ||
+    !stalePower.includes('<small class="scene-quality">Данные устарели</small>') ||
+    stalePower.includes("· устарело")) {
+  throw new Error("stale power must keep its value compact and show quality below it");
 }
 
 console.log("Router-style LIDER overview header composition verified");
