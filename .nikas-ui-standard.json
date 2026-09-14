@@ -20,7 +20,7 @@
   ],
   "source_kit": {
     "path": "templates/shell_v2/nikas-specialized-shell.js",
-    "sha256": "b7dbb84bb2f950fce75591266d6de7dbff824f4d480f455f0b8cbb0866a1c176",
+    "sha256": "af7155175f289eee3f7c78475ebfb18c77adedb8cb95aca3aa78422f41419298",
     "delivery": "vendored-build-time",
     "runtime_dependency": false
   },

@@ -69,7 +69,7 @@ function nikasShellV2Styles() {
       border-radius:16px;background:var(--card-background-color,#fff);box-shadow:0 7px 20px rgba(23,45,76,.08);
       display:grid;place-items:center;color:var(--primary-text-color,#17191c);cursor:pointer
     }
-    .nikas-shell__side-action--right{justify-self:end;color:var(--primary-color,#03a9d9)}
+    .nikas-shell__side-action--right{justify-self:end;color:var(--primary-text-color,#17191c)}
     .nikas-shell__side-action:disabled{opacity:.55;cursor:wait}
     .nikas-shell__side-action ha-icon{--mdc-icon-size:25px}
     .nikas-shell__title{
@@ -2003,7 +2003,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".shell-button{width:44px;min-width:44px;height:44px;min-height:44px;margin:auto;padding:0;border:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 72%,transparent);background:var(--card-background-color,#fff);border-radius:16px;display:grid;place-items:center;box-shadow:0 7px 20px rgba(23,45,76,.08)}",
       ".shell-button ha-icon{--mdc-icon-size:25px;width:25px;height:25px}",
       ".menu{justify-self:start;color:var(--primary-text-color,#17191c)}",
-      ".refresh{justify-self:end;color:var(--primary-color,#03a9d9);transition:color .18s ease,background .18s ease,transform .12s ease}",
+      ".refresh{justify-self:end;color:var(--primary-text-color,#17191c);transition:color .18s ease,background .18s ease,transform .12s ease}",
       ".refresh:disabled{opacity:1;cursor:progress}",
       ".refresh.refresh-busy ha-icon{animation:lider-refresh-spin 900ms linear infinite}",
       ".refresh.refresh-success{color:#43a047}",
