@@ -37,7 +37,7 @@ const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
 const REFRESH_MIN_VISIBLE_MS = 900;
 const REFRESH_RESULT_VISIBLE_MS = 1_400;
-const LIDER_UI_VERSION = "0.8.8";
+const LIDER_UI_VERSION = "0.8.9";
 const PANEL_TITLE = "Электросеть";
 const SAFE_DEFAULT_ROUTE = "/home/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
@@ -647,15 +647,20 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _overview() {
     return '<div class="page overview-page">' +
-      '<section class="installation" role="img" aria-label="Три стабилизатора LIDER PS7500W-15 на стойке с внешним пофазным байпасом">' +
-        '<div class="scene-heading"><h1>Контроль электросети</h1>' +
-          '<p>Сеть → LIDER → дом</p></div>' +
-        this._connectionBadge() +
-        '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.2" alt="" aria-hidden="true" loading="eager" decoding="sync">' +
-        this._scenePhase("A", "phase-a") +
-        this._scenePhase("B", "phase-b") +
-        this._scenePhase("C", "phase-c") +
-        '<div class="installation-caption"><span>LIDER PS7500W-15 · 3 шт.</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
+      '<section class="installation">' +
+        '<div class="installation-header">' +
+          '<span class="installation-accent" aria-hidden="true"></span>' +
+          '<div class="scene-heading"><h1>Контроль электросети</h1>' +
+            '<p>Сеть → LIDER → дом</p></div>' +
+          this._connectionBadge() +
+        '</div>' +
+        '<div class="installation-scene">' +
+          '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.2" alt="Три стабилизатора LIDER PS7500W-15 на стойке с внешним пофазным байпасом" loading="eager" decoding="sync">' +
+          this._scenePhase("A", "phase-a") +
+          this._scenePhase("B", "phase-b") +
+          this._scenePhase("C", "phase-c") +
+          '<div class="installation-caption"><span>LIDER PS7500W-15 · 3 шт.</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
+        '</div>' +
       '</section>' +
       this._lineCard() +
     '</div>';
@@ -1695,14 +1700,17 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:110px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}",
       ".hero.compact{min-height:80px;padding:12px 16px}",
-      ".installation{position:relative;min-height:576px;aspect-ratio:.70;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.2') center center/cover no-repeat;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));isolation:isolate}",
+      ".installation{position:relative;min-height:576px;aspect-ratio:.70;padding:8px;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));display:grid;grid-template-rows:92px minmax(0,1fr);isolation:isolate}",
       ".overview-page .installation{min-height:0;aspect-ratio:auto}",
+      ".installation-header{position:relative;min-width:0;overflow:hidden;padding:8px 6px 10px;display:grid;grid-template-columns:minmax(0,1fr) 168px;align-items:center;gap:10px}",
+      ".installation-accent{position:absolute;z-index:0;right:-44px;top:-74px;width:205px;height:205px;border-radius:50%;background:color-mix(in srgb,var(--primary-color,#03a9d9) 18%,#dff5fb);pointer-events:none}",
+      ".installation-scene{position:relative;min-height:0;overflow:hidden;border-radius:18px;background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.2') center center/cover no-repeat;isolation:isolate}",
       ".installation-equipment{position:absolute;z-index:1;left:54%;bottom:1%;height:79%;width:auto;max-width:60%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
-      ".installation:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
-      ".scene-heading{position:absolute;z-index:4;left:18px;top:16px;max-width:45%;text-shadow:0 1px 7px rgba(255,255,255,.95)}",
+      ".installation-scene:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
+      ".scene-heading{position:relative;z-index:2;min-width:0;max-width:45%}",
       ".scene-heading h1{font-size:22px;line-height:1.02;margin-top:3px}",
       ".scene-heading p{margin-top:3px;color:#4d555d;font-size:12px;line-height:1.2}",
-      ".overall{position:absolute;z-index:5;right:14px;top:16px;min-width:144px;padding:12px 14px;border:1px solid;border-radius:18px;display:grid;grid-template-columns:10px minmax(0,auto);grid-template-rows:auto auto;align-items:center;column-gap:11px;row-gap:2px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.09)}",
+      ".overall{position:relative;z-index:2;width:168px;height:58px;min-width:168px;padding:10px 12px;border:1px solid;border-radius:18px;display:grid;grid-template-columns:10px minmax(0,auto);grid-template-rows:auto auto;align-items:center;column-gap:11px;row-gap:1px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.09)}",
       ".status-lamp{grid-column:1;grid-row:1;width:10px;height:10px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 18%,transparent),0 0 8px color-mix(in srgb,currentColor 58%,transparent)}",
       ".status-main{grid-column:2;grid-row:1;font-size:16px;font-weight:700;line-height:1.15}",
       ".status-sub{grid-column:2;grid-row:2;font-size:13px;font-weight:550;line-height:1.2}",
@@ -1797,9 +1805,10 @@ class LiderVoltageControlPanel extends HTMLElement {
       "@keyframes lider-refresh-spin{to{transform:rotate(360deg)}}",
       "@media (prefers-reduced-motion:reduce){.refresh.refresh-busy ha-icon{animation:none}.refresh.refresh-busy{background:color-mix(in srgb,var(--primary-color,#03a9d9) 12%,var(--card-background-color,#fff))}}",
       "@media (max-width:560px){.scene-heading p{white-space:nowrap}.scene-phase.side-input{width:31%}.input-metrics{grid-template-columns:1fr;gap:3px}.side-input .scene-reading,.side-input .scene-power{padding:3px;gap:1px}.side-input .scene-reading span,.side-input .scene-power span{line-height:1.05}.side-input .scene-reading b,.side-input .scene-power b{line-height:1.15}.scene-phase.side-output{padding-block:7px;gap:4px}.side-output .scene-reading{padding:5px 3px}}",
+      "@media (max-height:700px){.viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:auto}.overview-page{height:auto}.overview-page .installation{min-height:600px}}",
       "@container nikas-panel (min-width:600px){.canvas{padding-inline:16px}}",
       "@container nikas-panel (min-width:1024px){.canvas{padding-inline:24px}}",
-      "@container nikas-panel (max-width:420px){.title-return{min-width:0;width:100%;padding-inline:8px}.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 20px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:600px}.installation-equipment{left:55%;bottom:1%;height:79%;max-width:60%}.scene-heading{max-width:44%}.scene-heading h1{font-size:19px}.scene-phase{width:29%;padding:7px 5px}.scene-phase.side-input{left:7px;width:31%}.scene-phase.side-output{right:7px}.scene-reading b,.scene-power b{font-size:12px}.installation-caption{left:12px;right:12px;bottom:11px}.installation-caption span{font-size:12px}.installation-caption strong{font-size:12px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{min-width:140px;white-space:nowrap}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
+      "@container nikas-panel (max-width:420px){.title-return{min-width:0;width:100%;padding-inline:8px}.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 20px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:600px;grid-template-rows:88px minmax(0,1fr)}.installation-header{padding:6px 2px 9px;gap:4px}.installation-equipment{left:55%;bottom:1%;height:86%;max-width:62%}.scene-heading{max-width:100%}.scene-heading h1{font-size:16px;overflow-wrap:anywhere}.scene-heading p{white-space:normal}.installation-scene{display:grid;grid-template-columns:31% minmax(0,1fr) 29%;grid-template-rows:repeat(3,minmax(78px,1fr)) 38px;padding:4px 7px 0}.scene-phase{position:relative;top:auto;left:auto;right:auto;transform:none;width:100%;align-self:center;padding:3px 5px;gap:1px}.scene-phase.phase-a{grid-row:1}.scene-phase.phase-b{grid-row:2}.scene-phase.phase-c{grid-row:3}.scene-phase.side-input{grid-column:1}.scene-phase.side-output{grid-column:3}.scene-phase.side-input{left:auto;width:100%}.scene-phase.side-output{right:auto;width:100%;padding-block:4px;gap:2px}.input-metrics{grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:1px}.side-input .scene-reading,.side-input .scene-power{min-height:0;padding:1px;gap:0}.side-output .scene-reading{padding:3px 2px}.scene-reading b,.scene-power b{font-size:12px}.installation-caption{position:relative;grid-column:1/-1;grid-row:4;left:auto;right:auto;bottom:auto;align-self:center}.installation-caption span{font-size:12px}.installation-caption strong{font-size:12px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{width:168px;height:58px;min-width:168px;white-space:nowrap}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
     ].join("");
   }
 }

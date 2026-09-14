@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.8
+  version: 0.8.9
 spec:
   read_only: true
   refresh_action:
@@ -83,6 +83,9 @@ spec:
   overview:
     fills_work_viewport: true
     vertical_scroll_at_100_percent: false
+    status_header_separate_from_photo: true
+    status_badge_px: [168, 58]
+    decorative_accent: primary_blue_circle_205px
     mobile_input_metrics: two_stacked_rows
     metric_order: [power, voltage]
     phase_cards_aligned_by_center: true

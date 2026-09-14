@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.8.8",
+  "ui_version": "0.8.9",
   "template_version": "2.2",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -14,7 +14,7 @@
     "source_module": "lider-voltage-control-panel-core.js",
     "build_script": "scripts/build-frontend-bundle.mjs",
     "runtime_previous_version_imports": false,
-    "hero_composition": "separate_room_and_equipment_layers"
+    "hero_composition": "separate_status_header_and_photo_scene"
   },
   "rendering": {
     "stable_shell_dom": true,
@@ -82,6 +82,9 @@
   "overview": {
     "fills_work_viewport": true,
     "vertical_scroll_at_100_percent": false,
+    "status_header_separate_from_photo": true,
+    "status_badge_px": [168, 58],
+    "decorative_accent": "primary_blue_circle_205px",
     "mobile_input_metrics": "two_stacked_rows",
     "mobile_input_labels": ["Мощность", "Напряжение"],
     "phase_cards_aligned_by_center": true,
