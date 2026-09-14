@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.9
+  version: 0.8.10
 spec:
   read_only: true
   refresh_action:
@@ -72,8 +72,8 @@ spec:
     device_identity: one_three_phase_LIDER_system
     peer_device_selector: false
     phase_labels: [L1, L2, L3]
-    three_phase_assembly: three LIDER PS7500W-15 modules
-    phase_module: LIDER PS7500W-15
+    three_phase_assembly: three LIDER PS-7500W-30 modules
+    phase_module: LIDER PS-7500W-30
     module_count: 3
     rack: LIDER 9-36
     arrangement: vertically_stacked_on_communication_rack

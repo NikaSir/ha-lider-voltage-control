@@ -1,5 +1,12 @@
 # Changelog
 
+## Integration 0.8.11 / UI 0.8.10 — 2026-09-14
+
+- Separates the mobile input power and voltage cards by 6 px and places phases A/B/C in three unshifted grid rows.
+- Removes inherited percentage offsets that caused adjacent phase cards to overlap after the router-style header update.
+- Keeps stale voltage and power values on one line and shows `Данные устарели` in a dedicated stable subline.
+- Corrects the installed equipment model to LIDER PS-7500W-30 in the overview, accessibility text and panel documentation.
+
 ## Integration 0.8.10 / UI 0.8.9 — 2026-09-14
 
 - Separates the Overview status header from the equipment photo scene without increasing the page height or reintroducing scroll at 100% zoom on regular phone viewports.

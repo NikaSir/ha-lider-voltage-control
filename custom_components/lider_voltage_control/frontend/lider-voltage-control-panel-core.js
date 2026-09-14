@@ -37,7 +37,7 @@ const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
 const REFRESH_MIN_VISIBLE_MS = 900;
 const REFRESH_RESULT_VISIBLE_MS = 1_400;
-const LIDER_UI_VERSION = "0.8.9";
+const LIDER_UI_VERSION = "0.8.10";
 const PANEL_TITLE = "Электросеть";
 const SAFE_DEFAULT_ROUTE = "/home/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
@@ -655,11 +655,11 @@ class LiderVoltageControlPanel extends HTMLElement {
           this._connectionBadge() +
         '</div>' +
         '<div class="installation-scene">' +
-          '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.2" alt="Три стабилизатора LIDER PS7500W-15 на стойке с внешним пофазным байпасом" loading="eager" decoding="sync">' +
+          '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.2" alt="Три стабилизатора LIDER PS-7500W-30 на стойке с внешним пофазным байпасом" loading="eager" decoding="sync">' +
           this._scenePhase("A", "phase-a") +
           this._scenePhase("B", "phase-b") +
           this._scenePhase("C", "phase-c") +
-          '<div class="installation-caption"><span>LIDER PS7500W-15 · 3 шт.</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
+          '<div class="installation-caption"><span>LIDER PS-7500W-30 · 3 шт.</span><strong>Стойка 9-36 · пофазный байпас</strong></div>' +
         '</div>' +
       '</section>' +
       this._lineCard() +
@@ -688,12 +688,18 @@ class LiderVoltageControlPanel extends HTMLElement {
     return '<button class="scene-reading ' + severity + '" data-entity="' + entityId + '">' +
       '<span>' + label + '</span><b>' +
       this._voltageText(reading) +
-    '</b></button>';
+      '</b><small class="scene-quality">' +
+      (severity === "stale" ? this._severityLabel(severity) : "") +
+    '</small></button>';
   }
 
   _scenePower(entityId) {
-    return '<button class="scene-power" data-entity="' + entityId + '">' +
-      '<span>Мощность</span><b>' + this._stateText(entityId) + '</b></button>';
+    const state = this._displayState(entityId);
+    const stale = Boolean(state && this._stateQuality(state) === "stale");
+    return '<button class="scene-power' + (stale ? ' stale' : '') + '" data-entity="' + entityId + '">' +
+      '<span>Мощность</span><b>' + this._stateText(entityId, false) + '</b>' +
+      '<small class="scene-quality">' + (stale ? this._severityLabel("stale") : "") + '</small>' +
+    '</button>';
   }
 
   _summarySection(title, entities, policy) {
@@ -1234,7 +1240,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       .test(entityId + " " + friendlyName);
   }
 
-  _stateText(entityId) {
+  _stateText(entityId, includeQuality = true) {
     const state = this._displayState(entityId);
     if (!state || ["unknown", "unavailable", "none", ""].includes(String(state.state).toLowerCase())) {
       return 'Нет данных';
@@ -1250,7 +1256,7 @@ class LiderVoltageControlPanel extends HTMLElement {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
       }).format(value) + (unit ? ' ' + unit : '');
-      return text + (this._stateQuality(state) === "stale" ? ' · устарело' : '');
+      return text + (includeQuality && this._stateQuality(state) === "stale" ? ' · устарело' : '');
     }
     return String(state.state);
   }
@@ -1311,8 +1317,7 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   _voltageText(reading) {
     if (!reading.available) return "Нет данных";
-    return this._number(reading.value) + " В" +
-      (reading.quality === "stale" ? " · устарело" : "");
+    return this._number(reading.value) + " В";
   }
 
   _severity(value, policy) {
@@ -1727,6 +1732,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".scene-reading{min-width:0;border:0;border-radius:10px;padding:6px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}",
       ".scene-reading span{font-size:12px;color:var(--secondary-text-color,#69737d)}",
       ".scene-reading b{font-size:12px;white-space:nowrap}",
+      ".scene-quality{min-height:0;font-size:12px;line-height:1.05;text-align:center;white-space:normal;color:inherit}",
       ".scene-power{min-width:0;border:0;border-radius:10px;padding:6px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 8%,#fff)}",
       ".scene-power span{font-size:12px;color:var(--secondary-text-color,#69737d)}.scene-power b{font-size:12px;white-space:nowrap}",
       ".installation-caption{position:absolute;z-index:4;left:16px;right:16px;bottom:13px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;color:#fff;text-shadow:0 2px 7px rgba(0,0,0,.8)}",
@@ -1808,7 +1814,8 @@ class LiderVoltageControlPanel extends HTMLElement {
       "@media (max-height:700px){.viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:auto}.overview-page{height:auto}.overview-page .installation{min-height:600px}}",
       "@container nikas-panel (min-width:600px){.canvas{padding-inline:16px}}",
       "@container nikas-panel (min-width:1024px){.canvas{padding-inline:24px}}",
-      "@container nikas-panel (max-width:420px){.title-return{min-width:0;width:100%;padding-inline:8px}.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 20px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:600px;grid-template-rows:88px minmax(0,1fr)}.installation-header{padding:6px 2px 9px;gap:4px}.installation-equipment{left:55%;bottom:1%;height:86%;max-width:62%}.scene-heading{max-width:100%}.scene-heading h1{font-size:16px;overflow-wrap:anywhere}.scene-heading p{white-space:normal}.installation-scene{display:grid;grid-template-columns:31% minmax(0,1fr) 29%;grid-template-rows:repeat(3,minmax(78px,1fr)) 38px;padding:4px 7px 0}.scene-phase{position:relative;top:auto;left:auto;right:auto;transform:none;width:100%;align-self:center;padding:3px 5px;gap:1px}.scene-phase.phase-a{grid-row:1}.scene-phase.phase-b{grid-row:2}.scene-phase.phase-c{grid-row:3}.scene-phase.side-input{grid-column:1}.scene-phase.side-output{grid-column:3}.scene-phase.side-input{left:auto;width:100%}.scene-phase.side-output{right:auto;width:100%;padding-block:4px;gap:2px}.input-metrics{grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:1px}.side-input .scene-reading,.side-input .scene-power{min-height:0;padding:1px;gap:0}.side-output .scene-reading{padding:3px 2px}.scene-reading b,.scene-power b{font-size:12px}.installation-caption{position:relative;grid-column:1/-1;grid-row:4;left:auto;right:auto;bottom:auto;align-self:center}.installation-caption span{font-size:12px}.installation-caption strong{font-size:12px}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{width:168px;height:58px;min-width:168px;white-space:nowrap}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
+      "@container nikas-panel (max-width:560px){.installation-equipment{left:55%;bottom:1%;height:86%;max-width:62%}.installation-scene{display:grid;grid-template-columns:31% minmax(0,1fr) 29%;grid-template-rows:14% repeat(3,minmax(92px,1fr)) 38px;padding:4px 7px 0}.scene-phase{position:relative;left:auto;right:auto;width:100%;align-self:center;padding:3px 5px;gap:1px}.scene-phase.phase-a{top:auto;transform:none;grid-row:2}.scene-phase.phase-b{top:auto;transform:none;grid-row:3}.scene-phase.phase-c{top:auto;transform:none;grid-row:4}.scene-phase.side-input{grid-column:1;left:auto;width:100%}.scene-phase.side-output{grid-column:3;right:auto;width:100%;padding-block:4px;gap:2px}.input-metrics{grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:6px}.side-input .scene-reading,.side-input .scene-power{min-height:0;padding:1px;gap:0}.side-output .scene-reading{padding:3px 2px}.installation-caption{position:relative;grid-column:1/-1;grid-row:5;left:auto;right:auto;bottom:auto;align-self:center}.installation-caption span{font-size:12px}.installation-caption strong{font-size:12px}}",
+      "@container nikas-panel (max-width:420px){.title-return{min-width:0;width:100%;padding-inline:8px}.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 20px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:600px;grid-template-rows:88px minmax(0,1fr)}.installation-header{padding:6px 2px 9px;gap:4px}.scene-heading{max-width:100%}.scene-heading h1{font-size:16px;overflow-wrap:anywhere}.scene-heading p{white-space:normal}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{width:168px;height:58px;min-width:168px;white-space:nowrap}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
     ].join("");
   }
 }

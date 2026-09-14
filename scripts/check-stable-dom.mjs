@@ -30,7 +30,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.9"',
+  'const LIDER_UI_VERSION = "0.8.10"',
   '.title{text-align:center;display:grid;place-content:center;line-height:1.08}',
   '.title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px',
   'const NIKAS_SHELL_V2_VERSION = "2.1"',
@@ -469,7 +469,9 @@ if (!cachedVoltage.available || cachedVoltage.quality !== "stale" || cachedVolta
   throw new Error("cached phase voltage must retain its stale quality and measurement timestamp");
 }
 const cachedScene = panel._sceneReading("Напряжение", voltageA, "before");
-if (!cachedScene.includes("220,0 В") || !cachedScene.includes("устарело") || cachedScene.includes("scene-reading normal")) {
+if (!cachedScene.includes("220,0 В") || !cachedScene.includes("scene-reading stale") ||
+    !cachedScene.includes("Данные устарели") || cachedScene.includes("scene-reading normal") ||
+    cachedScene.includes("· устарело")) {
   throw new Error("cached phase voltage must remain visible but must never look current or normal");
 }
 if (panel._telemetryFreshness().key !== "stale") {
