@@ -67,7 +67,7 @@ function nikasShellV2Styles() {
       border-radius:16px;background:var(--card-background-color,#fff);box-shadow:0 7px 20px rgba(23,45,76,.08);
       display:grid;place-items:center;color:var(--primary-text-color,#17191c);cursor:pointer
     }
-    .nikas-shell__side-action--right{justify-self:end;color:var(--primary-color,#03a9d9)}
+    .nikas-shell__side-action--right{justify-self:end;color:var(--primary-text-color,#17191c)}
     .nikas-shell__side-action:disabled{opacity:.55;cursor:wait}
     .nikas-shell__side-action ha-icon{--mdc-icon-size:25px}
     .nikas-shell__title{
