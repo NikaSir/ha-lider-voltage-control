@@ -30,7 +30,7 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.10"',
+  'const LIDER_UI_VERSION = "0.8.11"',
   '.title{text-align:center;display:grid;place-content:center;line-height:1.08}',
   '.title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px',
   'const NIKAS_SHELL_V2_VERSION = "2.1"',
