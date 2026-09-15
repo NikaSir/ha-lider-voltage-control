@@ -1,0 +1,36 @@
+name: Synchronize beta003 test version
+on:
+  push:
+    branches: [release/hero-surface-beta003]
+    paths: [.github/workflows/sync-beta003-test.yml]
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.actor == 'NikaSir' && github.repository == 'NikaSir/ha-lider-voltage-control'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Update only the pinned UI version assertion
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/check-stable-dom.mjs')
+          text = p.read_text(encoding='utf-8')
+          old = 'const LIDER_UI_VERSION = "0.8.12"'
+          new = 'const LIDER_UI_VERSION = "0.8.13"'
+          assert text.count(old) == 1
+          p.write_text(text.replace(old,new,1),encoding='utf-8')
+          PY
+          node scripts/build-frontend-bundle.mjs --check
+          node scripts/check-stable-dom.mjs
+          node scripts/check-overview-header-composition.mjs
+          node scripts/check-refresh-action.mjs
+          git diff --check
+          git diff --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/check-stable-dom.mjs
+          git commit -m 'test(release): expect LIDER UI 0.8.13 without changing DOM checks'
+          git push origin HEAD:refs/heads/release/hero-surface-beta003
