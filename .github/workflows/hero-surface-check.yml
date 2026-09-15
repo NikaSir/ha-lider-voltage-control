@@ -1,0 +1,17 @@
+name: HERO surface regression
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  hero-surface:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify source and runtime HERO surfaces
+        run: python3 tests/test_hero_surface.py

@@ -2020,7 +2020,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:110px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}",
       ".hero.compact{min-height:80px;padding:12px 16px}",
-      ".installation{position:relative;min-height:576px;aspect-ratio:.70;padding:8px;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));display:grid;grid-template-rows:92px minmax(0,1fr);isolation:isolate}",
+      ".installation{position:relative;min-height:576px;aspect-ratio:.70;padding:8px;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:color-mix(in srgb,var(--card-background-color,#fff) 95%,var(--primary-color,#03a9d9) 5%);box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));display:grid;grid-template-rows:92px minmax(0,1fr);isolation:isolate}",
       ".overview-page .installation{min-height:0;aspect-ratio:auto}",
       ".installation-header{position:relative;min-width:0;overflow:hidden;padding:8px 6px 10px;display:grid;grid-template-columns:minmax(0,1fr) 168px;align-items:center;gap:10px}",
       ".installation-accent{position:absolute;z-index:0;right:-44px;top:-74px;width:205px;height:205px;border-radius:50%;background:color-mix(in srgb,var(--primary-color,#03a9d9) 12%,var(--card-background-color,#fff));pointer-events:none}",
