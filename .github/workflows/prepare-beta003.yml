@@ -1,0 +1,63 @@
+name: Prepare authorized beta003
+on:
+  push:
+    branches: [release/hero-surface-beta003]
+    paths: [.github/workflows/prepare-beta003.yml]
+permissions:
+  contents: write
+jobs:
+  prepare:
+    if: github.actor == 'NikaSir' && github.ref == 'refs/heads/release/hero-surface-beta003'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Stamp versions, rebuild and verify
+        run: |
+          python3 - <<'PY'
+          import json, re, subprocess
+          from pathlib import Path
+          component = Path('custom_components/lider_voltage_control')
+          manifest = component / 'manifest.json'
+          old, new = '0.8.12-beta002', '0.8.12-beta003'
+          assert json.loads(manifest.read_text())['version'] == old
+          candidates = list(component.glob('*.py')) + list((component/'frontend').glob('*.js')) + list((component/'frontend').glob('*.mjs'))
+          candidates += [manifest, Path('panel.json'), Path('panel_manifest.json')]
+          pattern = re.compile(r'(?<![0-9.])0\.8\.12(?![0-9A-Za-z.\-])')
+          changes = []
+          for p in candidates:
+            if not p.is_file() or p.name == 'lider-voltage-control-panel.js':
+              continue
+            before = p.read_text(encoding='utf-8')
+            after = pattern.sub('0.8.13', before.replace(old, new))
+            if after != before:
+              print('VERSION METADATA', p, flush=True)
+              p.write_text(after, encoding='utf-8')
+              changes.append(str(p))
+          assert str(manifest) in changes and len(changes) >= 3
+          assert json.loads(manifest.read_text())['version'] == new
+          subprocess.run(['node','scripts/build-frontend-bundle.mjs'], check=True)
+          subprocess.run(['node','scripts/build-frontend-bundle.mjs','--check'], check=True)
+          changes.append(str(component/'frontend/lider-voltage-control-panel.js'))
+          subprocess.run(['python3','tests/test_hero_surface.py'], check=True)
+          subprocess.run(['python3','scripts/check_nikas_ui_standard.py'], check=True)
+          subprocess.run(['python3','-m','compileall','-q','custom_components'], check=True)
+          for p in (component/'frontend').iterdir():
+            if p.suffix in ('.js','.mjs'):
+              subprocess.run(['node','--check',str(p)], check=True)
+          actual = set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
+          assert actual == set(changes), actual
+          subprocess.run(['git','diff','--check'],check=True)
+          subprocess.run(['git','diff','--stat'],check=True)
+          subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
+          subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'],check=True)
+          subprocess.run(['git','add','--',*changes],check=True)
+          subprocess.run(['git','commit','-m','chore(release): 0.8.12-beta003, UI 0.8.13 cache refresh'],check=True)
+          subprocess.run(['git','push','origin','HEAD:refs/heads/release/hero-surface-beta003'],check=True)
+          PY
