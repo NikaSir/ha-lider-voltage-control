@@ -1,29 +1,17 @@
-name: HERO surface inspection
+name: HERO surface regression
 on:
   push:
-    branches: [codex/uniform-hero-surface]
-    paths: [.github/workflows/hero-surface-check.yml]
+    branches: [main, codex/uniform-hero-surface]
+  pull_request:
 permissions:
   contents: read
 jobs:
-  inspect:
+  hero-surface:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
-      - name: Inspect source rules and build entry points
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          for p in Path('.').rglob('AGENTS.md'):
-              print(f'--- INSTRUCTIONS {p} ---\n{p.read_text()}')
-          for p in Path('custom_components').rglob('*.js'):
-              if 'production' in p.name or 'assets' in p.parts:
-                  continue
-              for i,line in enumerate(p.read_text().splitlines(),1):
-                  if any(x in line for x in ('.hero{','.hero {','.hero-primary{','.systemOverview{','.installation{','.u154-summary{','.summary{')):
-                      print(f'--- {p}:{i} ---\n{line}')
-          for p in Path('scripts').glob('*'):
-              if 'build' in p.name:
-                  print(f'--- BUILD {p} ---\n{p.read_text()}')
-          PY
+        with:
+          persist-credentials: false
+      - name: Verify source and runtime HERO surfaces
+        run: python3 tests/test_hero_surface.py
