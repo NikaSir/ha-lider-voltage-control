@@ -18,46 +18,56 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - name: Stamp versions, rebuild and verify
+      - name: Synchronize release metadata and build
         run: |
           python3 - <<'PY'
           import json, re, subprocess
           from pathlib import Path
-          component = Path('custom_components/lider_voltage_control')
-          manifest = component / 'manifest.json'
-          old, new = '0.8.12-beta002', '0.8.12-beta003'
-          assert json.loads(manifest.read_text())['version'] == old
+          manifests = list(Path('custom_components').glob('*/manifest.json'))
+          assert len(manifests) == 1
+          manifest = manifests[0]
+          component = manifest.parent
+          old = json.loads(manifest.read_text())['version']
+          assert old.endswith('-beta002'), old
+          new = old[:-3] + '003'
+          standard = Path('.nikas-ui-standard.json')
+          oldui = json.loads(standard.read_text())['ui_version'].removeprefix('v')
+          parts = oldui.split('.')
+          assert len(parts) == 3 and all(p.isdigit() for p in parts)
+          newui = '.'.join(parts[:2] + [str(int(parts[2]) + 1)])
+          pattern = re.compile(r'(?<![0-9.])' + re.escape(oldui) + r'(?![0-9A-Za-z.\-])')
+          builders = [('python3','scripts/build_s8_production.py'),('python3','scripts/build-frontend.py'),('node','scripts/build-frontend-bundle.mjs')]
+          builds = [list(b) for b in builders if Path(b[1]).is_file()]
+          assert len(builds) <= 1
           candidates = list(component.glob('*.py')) + list((component/'frontend').glob('*.js')) + list((component/'frontend').glob('*.mjs'))
-          candidates += [manifest, Path('panel.json'), Path('panel_manifest.json')]
-          pattern = re.compile(r'(?<![0-9.])0\.8\.12(?![0-9A-Za-z.\-])')
+          candidates += [manifest, standard, Path('panel.json'), Path('panel_manifest.json')]
+          generated = {'s8-omni-production.js','nikas-climate-production.js','lider-voltage-control-panel.js'}
           changes = []
           for p in candidates:
-            if not p.is_file() or p.name == 'lider-voltage-control-panel.js':
+            if not p.is_file() or p.name in generated:
               continue
             before = p.read_text(encoding='utf-8')
-            after = pattern.sub('0.8.13', before.replace(old, new))
+            after = pattern.sub(newui, before.replace(old,new))
             if after != before:
-              print('VERSION METADATA', p, flush=True)
-              p.write_text(after, encoding='utf-8')
+              p.write_text(after,encoding='utf-8')
               changes.append(str(p))
-          assert str(manifest) in changes and len(changes) >= 3
-          assert json.loads(manifest.read_text())['version'] == new
-          subprocess.run(['node','scripts/build-frontend-bundle.mjs'], check=True)
-          subprocess.run(['node','scripts/build-frontend-bundle.mjs','--check'], check=True)
-          changes.append(str(component/'frontend/lider-voltage-control-panel.js'))
-          subprocess.run(['python3','tests/test_hero_surface.py'], check=True)
-          subprocess.run(['python3','scripts/check_nikas_ui_standard.py'], check=True)
-          subprocess.run(['python3','-m','compileall','-q','custom_components'], check=True)
+          assert str(manifest) in changes and str(standard) in changes
+          for build in builds:
+            subprocess.run(build,check=True)
+            subprocess.run(build + ['--check'],check=True)
+          subprocess.run(['python3','tests/test_hero_surface.py'],check=True)
+          subprocess.run(['python3','scripts/check_nikas_ui_standard.py'],check=True)
+          subprocess.run(['python3','-m','compileall','-q','custom_components'],check=True)
           for p in (component/'frontend').iterdir():
             if p.suffix in ('.js','.mjs'):
-              subprocess.run(['node','--check',str(p)], check=True)
-          actual = set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
-          assert actual == set(changes), actual
+              subprocess.run(['node','--check',str(p)],check=True)
+          actual = subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()
+          assert all(p in changes or Path(p).name in generated for p in actual), actual
           subprocess.run(['git','diff','--check'],check=True)
           subprocess.run(['git','diff','--stat'],check=True)
           subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
           subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'],check=True)
-          subprocess.run(['git','add','--',*changes],check=True)
-          subprocess.run(['git','commit','-m','chore(release): 0.8.12-beta003, UI 0.8.13 cache refresh'],check=True)
+          subprocess.run(['git','add','--',*actual],check=True)
+          subprocess.run(['git','commit','-m',f'chore(release): {new}, UI {newui} cache refresh'],check=True)
           subprocess.run(['git','push','origin','HEAD:refs/heads/release/hero-surface-beta003'],check=True)
           PY
