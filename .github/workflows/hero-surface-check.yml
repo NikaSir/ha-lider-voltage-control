@@ -1,52 +1,17 @@
-name: Apply approved HERO surface
+name: HERO surface regression
 on:
   push:
-    branches: [codex/uniform-hero-surface]
-    paths: [.github/workflows/hero-surface-check.yml]
+    branches: [main]
+  pull_request:
 permissions:
-  contents: write
+  contents: read
 jobs:
-  apply:
-    if: github.repository == 'NikaSir/ha-lider-voltage-control' && github.ref == 'refs/heads/codex/uniform-hero-surface'
+  hero-surface:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
-      - name: Change only the installation surface
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p = Path('custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js')
-          source = p.read_text(encoding='utf-8')
-          target = 'color-mix(in srgb,var(--card-background-color,#fff) 95%,var(--primary-color,#03a9d9) 5%)'
-          rules = [m for m in re.finditer(r'\.installation\{([^{}]*)\}', source) if 'background:' in m[1]]
-          assert len(rules) == 1, 'Unexpected installation surface rules'
-          m = rules[0]
-          old = 'background:var(--card-background-color,#fff);'
-          assert m[1].count(old) == 1, 'Surface changed since inspection'
-          body = m[1].replace(old, 'background:' + target + ';', 1)
-          p.write_text(source[:m.start(1)] + body + source[m.end(1):], encoding='utf-8')
-          PY
-      - name: Rebuild and verify production bundle
-        run: |
-          node scripts/build-frontend-bundle.mjs
-          node scripts/build-frontend-bundle.mjs --check
-          python3 tests/test_hero_surface.py
-          node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js
-          node --check custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
-          git diff --check
-      - name: Commit only source and generated runtime to feature branch
-        run: |
-          python3 - <<'PY'
-          import subprocess
-          expected = {'custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js', 'custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js'}
-          changed = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
-          assert changed == expected, changed
-          PY
-          git diff --stat
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add custom_components/lider_voltage_control/frontend/lider-voltage-control-panel-core.js custom_components/lider_voltage_control/frontend/lider-voltage-control-panel.js
-          git commit -m 'fix(ui): use flat five-percent installation surface without tinting photos'
-          git push origin HEAD:refs/heads/codex/uniform-hero-surface
+        with:
+          persist-credentials: false
+      - name: Verify source and runtime HERO surfaces
+        run: python3 tests/test_hero_surface.py
