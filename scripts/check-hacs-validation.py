@@ -22,7 +22,11 @@ class HacsValidationContractTests(unittest.TestCase):
         source = (ROOT / ".github/workflows/repository-checks.yml").read_text()
         validate = re.search(r"^  validate:\n(.*?)(?=^  [\w-]+:|\Z)", source, re.M | re.S)
         self.assertIsNotNone(validate)
-        self.assertRegex(validate.group(1),
+        self.assertRegex(validate.group(1), r"(?m)^    needs: \[repository-checks, hero-surface\]$")
+        self.assertIn("always()", validate.group(1))
+        repository = re.search(r"^  repository-checks:\n(.*?)(?=^  [\w-]+:|\Z)", source, re.M | re.S)
+        self.assertIsNotNone(repository, "Required gate must include repository checks")
+        self.assertRegex(repository.group(1),
                          r"(?m)^        run: python scripts/check-hacs-validation\.py$")
 
 
