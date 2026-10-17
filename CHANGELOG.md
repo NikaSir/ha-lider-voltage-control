@@ -1,3 +1,8 @@
+## Repository audit maintenance — 2026-10-17
+
+- Require the HERO regression through the existing validate gate; preserve the separately required HACS and Hassfest contexts.
+- Product/UI versions and equipment commands are unchanged; target-device acceptance remains separate.
+
 # Changelog
 
 ## Integration 0.8.11 / UI 0.8.10 — 2026-09-14
