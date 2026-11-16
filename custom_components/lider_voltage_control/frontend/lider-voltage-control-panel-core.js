@@ -37,10 +37,20 @@ const HISTORY_REQUEST_CONCURRENCY = 2;
 const HISTORY_COLORS = ["#039bc5", "#ed8b00", "#7656c9"];
 const REFRESH_MIN_VISIBLE_MS = 900;
 const REFRESH_RESULT_VISIBLE_MS = 1_400;
-const LIDER_UI_VERSION = "0.8.13";
+const LIDER_UI_VERSION = "0.8.14";
 const PANEL_TITLE = "Электросеть";
 const SAFE_DEFAULT_ROUTE = "/home/overview";
 const VALID_VIEWS = new Set(["overview", "before", "after", "history", "diagnostics"]);
+const CONNECTION_STATUS = {
+  local: { icon: "mdi:cloud", label: "Связь есть (локально)" },
+  offline: { icon: "mdi:cloud-off-outline", label: "Связь потеряна" },
+  unknown: { icon: "mdi:cloud-question-outline", label: "Связь неизвестна" },
+};
+const FRESHNESS_ICONS = {
+  fresh: "mdi:check-circle-outline",
+  stale: "mdi:clock-alert-outline",
+  unknown: "mdi:clock-outline",
+};
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -78,7 +88,6 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._statusTimer = null;
     this._renderedView = null;
     this._renderedLoading = null;
-    this._statusCategoryKey = null;
     this._viewCache = new Map();
     this._historyMountedPeriod = null;
     this._updateFrame = null;
@@ -99,6 +108,8 @@ class LiderVoltageControlPanel extends HTMLElement {
     this._captureTelemetrySnapshot();
     if (!this._mounted) {
       this._mount();
+    } else {
+      this._syncColorMode();
     }
     if (!this._registryLoaded && !this._registryLoading) {
       this._resolveRegistryEntities();
@@ -112,6 +123,7 @@ class LiderVoltageControlPanel extends HTMLElement {
 
   set panel(value) {
     this._panel = value;
+    this._syncHeaderVersion();
   }
 
   get panel() {
@@ -180,7 +192,9 @@ class LiderVoltageControlPanel extends HTMLElement {
   _startStatusTimer() {
     if (this._statusTimer) return;
     this._statusTimer = setInterval(() => {
-      if (this._view === "overview" && this.isConnected) this._updateConnectionBadge();
+      if (this.isConnected && (this._view === "overview" || this._view === "diagnostics")) {
+        this._updateConnectionIndicators();
+      }
     }, STATUS_REFRESH_MS);
   }
 
@@ -255,7 +269,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<div class="app">' +
         '<header class="header">' +
           '<button class="shell-button menu" type="button" aria-label="Меню Home Assistant"><ha-icon icon="mdi:menu"></ha-icon></button>' +
-          '<button class="title title-return" type="button" aria-label="' + PANEL_TITLE + ' — вернуться в базовую панель NikaS"><strong>' + PANEL_TITLE + '</strong><small>UI v' + LIDER_UI_VERSION + '</small></button>' +
+          '<button class="title title-return" type="button" aria-label="' + PANEL_TITLE + ' — вернуться в базовую панель NikaS" aria-describedby="lider-version"><strong>' + PANEL_TITLE + '</strong><small id="lider-version">UI v' + LIDER_UI_VERSION + ' / —</small></button>' +
           '<button class="shell-button refresh" type="button" aria-label="Обновить" aria-busy="false"><ha-icon icon="mdi:refresh"></ha-icon></button>' +
         '</header>' +
         '<main class="viewport">' +
@@ -272,6 +286,10 @@ class LiderVoltageControlPanel extends HTMLElement {
         '<div class="zoom-toast" aria-live="polite">Масштаб 100%</div>' +
       '</div>';
 
+    this._app = this.shadowRoot.querySelector(".app");
+    this._versionCaption = this.shadowRoot.querySelector("#lider-version");
+    this._syncColorMode();
+    this._syncHeaderVersion();
     this._viewport = this.shadowRoot.querySelector(".viewport");
     this._canvas = this.shadowRoot.querySelector(".canvas");
     this._toast = this.shadowRoot.querySelector(".zoom-toast");
@@ -345,6 +363,20 @@ class LiderVoltageControlPanel extends HTMLElement {
       '<ha-icon icon="' + icon + '"></ha-icon><small>' + escapeHtml(label) + '</small></button>';
   }
 
+  _syncHeaderVersion() {
+    if (!this._versionCaption) return;
+    const integrationVersion = this._panel?.config?.integration_version || "—";
+    const text = `UI v${LIDER_UI_VERSION} / ${integrationVersion}`;
+    if (this._versionCaption.textContent !== text) this._versionCaption.textContent = text;
+  }
+
+  _syncColorMode() {
+    if (!this._app) return;
+    const darkMode = this._hass?.themes?.darkMode ?? window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+    const mode = darkMode ? "dark" : "light";
+    if (this._app.dataset.colorMode !== mode) this._app.dataset.colorMode = mode;
+  }
+
   _renderContent() {
     if (!this._canvas) return;
     this._historyMountToken += 1;
@@ -365,7 +397,6 @@ class LiderVoltageControlPanel extends HTMLElement {
     if (this._canvas.firstElementChild !== root) this._canvas.replaceChildren(root);
     this._renderedView = this._view;
     this._renderedLoading = this._loading;
-    this._statusCategoryKey = null;
     this.shadowRoot.querySelectorAll(".tabs button").forEach((button) => {
       button.classList.toggle("active", button.dataset.view === this._view);
     });
@@ -507,7 +538,6 @@ class LiderVoltageControlPanel extends HTMLElement {
       if (!this._loading && this._view === "history") {
         requestAnimationFrame(() => this._mountHistoryCards());
       }
-      this._updateConnectionBadge();
       return;
     }
     if (this._loading) return;
@@ -534,7 +564,6 @@ class LiderVoltageControlPanel extends HTMLElement {
         this._patchExistingTree(current, next);
       }
     }
-    this._updateConnectionBadge();
   }
 
   _loadingView() {
@@ -568,7 +597,6 @@ class LiderVoltageControlPanel extends HTMLElement {
       return true;
     }
     if (current.nodeType !== Node.ELEMENT_NODE) return true;
-    if (current.matches?.(".overall")) return true;
     this._syncAttributes(current, next);
     let index = 0;
     while (index < next.childNodes.length) {
@@ -587,30 +615,15 @@ class LiderVoltageControlPanel extends HTMLElement {
     return true;
   }
 
-  _connectionCategoryKey() {
-    const freshness = this._telemetryFreshness();
-    return this._connectionState() + ":" + freshness.key;
-  }
-
-  _updateConnectionBadge() {
-    if (this._view !== "overview" || !this._canvas) return;
-    const key = this._connectionCategoryKey();
-    if (key === this._statusCategoryKey) return;
-    const current = this._canvas.querySelector(".overall");
+  _updateConnectionIndicators() {
+    const current = this._canvas?.querySelector(".connection-status");
     if (!current) return;
+    const connection = this._connectionState();
+    const freshness = this._telemetryFreshness();
+    if (current.dataset.connection === connection && current.dataset.freshness === freshness.key) return;
     const template = document.createElement("template");
-    template.innerHTML = this._connectionBadge();
-    const next = template.content.firstElementChild;
-    current.className = next.className;
-    current.setAttribute("aria-label", next.getAttribute("aria-label"));
-    const main = current.querySelector(".status-main");
-    const nextMain = next.querySelector(".status-main");
-    const sub = current.querySelector(".status-sub");
-    const nextSub = next.querySelector(".status-sub");
-    if (main.textContent !== nextMain.textContent) main.textContent = nextMain.textContent;
-    if (sub.textContent !== nextSub.textContent) sub.textContent = nextSub.textContent;
-    if (sub.className !== nextSub.className) sub.className = nextSub.className;
-    this._statusCategoryKey = key;
+    template.innerHTML = this._connectionIndicators(this._view === "diagnostics", connection, freshness);
+    this._patchExistingTree(current, template.content.firstElementChild);
   }
 
   _updateHistoryPeriod() {
@@ -652,7 +665,7 @@ class LiderVoltageControlPanel extends HTMLElement {
           '<span class="installation-accent" aria-hidden="true"></span>' +
           '<div class="scene-heading"><h1>Контроль электросети</h1>' +
             '<p>Сеть → LIDER → дом</p></div>' +
-          this._connectionBadge() +
+          this._connectionIndicators() +
         '</div>' +
         '<div class="installation-scene">' +
           '<img class="installation-equipment" src="/lider_voltage_control_panel/assets/lider-rack-ps22w30-v2.webp?v=0.3.2" alt="Три стабилизатора LIDER PS-7500W-30 на стойке с внешним пофазным байпасом" loading="eager" decoding="sync">' +
@@ -1084,6 +1097,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       {
         title: "Входной измеритель",
         subtitle: "Все состояния и атрибуты сущностей, формирующих контроль до LIDER.",
+        showConnectionStatus: true,
         ids: [...knownBefore, ...(this._diagnosticEntities.before || [])],
       },
       ...["A", "B", "C"].map((phase) => ({
@@ -1162,6 +1176,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       groups.map((group) => '<section class="panel-card raw-group"><div class="section-head raw-group-head"><div><h2>' +
         escapeHtml(group.title) + '</h2><p>' + escapeHtml(group.subtitle) +
         '</p></div><span class="raw-count">' + group.ids.length + '</span></div>' +
+        (group.showConnectionStatus ? this._connectionIndicators(true) : '') +
         (group.ids.length
           ? '<div class="raw-entities">' + group.ids.map((entityId) => this._rawEntity(entityId)).join("") + '</div>'
           : '<p class="raw-empty">Сущности пока не найдены.</p>') +
@@ -1351,22 +1366,6 @@ class LiderVoltageControlPanel extends HTMLElement {
     return "unavailable";
   }
 
-  _overallClass() {
-    return {
-      local: "normal",
-      offline: "emergency",
-      unknown: "unavailable",
-    }[this._connectionState()];
-  }
-
-  _overallLabel() {
-    return {
-      local: "Локально",
-      offline: "Нет связи",
-      unknown: "Нет данных",
-    }[this._connectionState()];
-  }
-
   _connectionState() {
     const meter = this._binaryState(ENTITY_MAP.meterOnline);
     if (meter === "on") return "local";
@@ -1374,27 +1373,33 @@ class LiderVoltageControlPanel extends HTMLElement {
     return "unknown";
   }
 
-  _connectionBadge() {
-    const freshness = this._telemetryFreshness();
-    return '<button class="overall ' + this._overallClass() + '" data-entity="' +
-      ENTITY_MAP.meterOnline + '" aria-label="Связь: ' + this._overallLabel() +
-      '. Телеметрия: ' + freshness.label + '">' +
-      '<span class="status-lamp" aria-hidden="true"></span>' +
-      '<span class="status-main">' + this._overallLabel() + '</span>' +
-      '<span class="status-sub ' + freshness.className + '">' + freshness.label + '</span>' +
-    '</button>';
+  _connectionIndicators(detailed = false, connection = this._connectionState(), freshness = this._telemetryFreshness()) {
+    const status = CONNECTION_STATUS[connection];
+    const freshnessLabel = 'Свежесть входных напряжений: ' + freshness.label;
+    return '<div class="connection-status' + (detailed ? ' connection-status-detail' : '') +
+      '" data-connection="' + connection + '" data-freshness="' + freshness.key + '">' +
+      '<button class="connection-icon" type="button" data-entity="' + ENTITY_MAP.meterOnline +
+        '" aria-label="' + status.label + '" title="' + status.label + '">' +
+        '<ha-icon icon="' + status.icon + '" aria-hidden="true"></ha-icon>' +
+        (detailed ? '<span>' + status.label + '</span>' : '') +
+      '</button>' +
+      '<span class="freshness-indicator" role="img" aria-label="' + freshnessLabel + '" title="' + freshnessLabel + '">' +
+        '<span class="freshness-icon" aria-hidden="true"><ha-icon icon="' + FRESHNESS_ICONS[freshness.key] + '"></ha-icon>' +
+        '<span class="freshness-question"' + (freshness.key === "unknown" ? '' : ' hidden') + ' aria-hidden="true">?</span></span>' +
+        (detailed ? '<span>' + freshness.label + '</span>' : '') +
+      '</span></div>';
   }
 
   _telemetryFreshness() {
     const readings = this._requiredVoltageEntityIds().map((entityId) => this._reading(entityId));
     if (readings.some((reading) => !reading.available || !Number.isFinite(reading.reportedAt))) {
-      return { key: "unknown", className: "freshness-unknown", label: "Нет данных" };
+      return { key: "unknown", label: "Нет данных" };
     }
     if (readings.some((reading) => reading.quality === "stale" ||
         Date.now() - reading.reportedAt > this._staleAfterMs())) {
-      return { key: "stale", className: "freshness-stale", label: "Данные устарели" };
+      return { key: "stale", label: "Данные устарели" };
     }
-    return { key: "fresh", className: "freshness-current", label: "Данные актуальны" };
+    return { key: "fresh", label: "Данные актуальны" };
   }
 
   _staleAfterMs() {
@@ -1678,24 +1683,26 @@ class LiderVoltageControlPanel extends HTMLElement {
       "*{box-sizing:border-box}",
       "button{font:inherit;color:inherit}",
       ".app{position:absolute;inset:0;display:grid;container:nikas-panel / inline-size;grid-template-rows:calc(60px + env(safe-area-inset-top,0px)) minmax(0,1fr) calc(64px + env(safe-area-inset-bottom,0px));width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;overscroll-behavior:none;background:var(--primary-background-color,#f5f6f8)}",
+      ".app{--lider-card:var(--card-background-color,#fff);--lider-text:var(--primary-text-color,#17191c);--lider-secondary:color-mix(in srgb,var(--secondary-text-color,#4c5965) 84%,var(--lider-text));--lider-good:#2e6e32;--lider-warning:#8d5100;--lider-significant:#a44300;--lider-error:#b3261e;--lider-unknown:#59636d;--refresh-arrow:#000;--refresh-surface:#fff}",
+      ".app[data-color-mode=dark]{--lider-card:var(--card-background-color,#202428);--lider-text:var(--primary-text-color,#eaeff4);--lider-secondary:color-mix(in srgb,var(--secondary-text-color,#b8bec6) 84%,var(--lider-text));--lider-good:#81c784;--lider-warning:#ffc46b;--lider-significant:#ffab70;--lider-error:#ff8a80;--lider-unknown:#a6aeb7;--refresh-arrow:#fff;--refresh-surface:color-mix(in srgb,var(--lider-card) 8%,#1c1c1c)}",
       ".header{position:relative;z-index:20;min-width:0;min-height:0;padding:env(safe-area-inset-top,0px) calc(12px + env(safe-area-inset-right,0px)) 0 calc(12px + env(safe-area-inset-left,0px));display:grid;grid-template-columns:52px minmax(0,1fr) 52px;align-items:center;background:color-mix(in srgb,var(--primary-background-color,#f5f6f8) 97%,transparent);border-bottom:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 70%,transparent);backdrop-filter:blur(18px) saturate(130%);-webkit-backdrop-filter:blur(18px) saturate(130%)}",
-      ".title{text-align:center;display:grid;place-content:center;line-height:1.08}",
-      ".title-return{justify-self:center;width:min(360px,100%);max-width:100%;height:52px;padding:5px 14px;border:1px solid color-mix(in srgb,var(--primary-color,#03a9d9) 24%,var(--divider-color,#dfe3e8));border-radius:16px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 5%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.06);cursor:pointer}",
+      ".title{text-align:center;display:grid;grid-template-columns:minmax(0,1fr);align-content:center;justify-items:center;line-height:1.08}",
+      ".title-return{justify-self:center;width:min(360px,100%);min-width:0;height:52px;padding:5px 14px;border:1px solid color-mix(in srgb,var(--primary-color,#03a9d9) 12%,var(--divider-color,#dfe3e8));border-radius:16px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 3%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.06);cursor:pointer}",
       ".title-return:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 13%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 42%,var(--divider-color,#dfe3e8));box-shadow:0 2px 7px rgba(23,45,76,.05)}",
-      ".title-return:focus-visible{outline:2px solid var(--primary-color,#03a9d9);outline-offset:2px}",
-      ".title strong{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:23px;font-weight:800}",
-      ".title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:560;color:var(--secondary-text-color,#68737d)}",
+      ".title-return:focus-visible,.shell-button:focus-visible,.connection-icon:focus-visible{outline:2px solid var(--primary-color,#03a9d9);outline-offset:2px}",
+      ".title strong{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:22px;font-weight:700}",
+      ".title small{display:block;max-width:100%;white-space:nowrap;font-size:clamp(11px,calc((100cqi - 150px) * .057),14px);font-weight:500;font-variant-numeric:tabular-nums;color:var(--secondary-text-color,#68737d)}",
       ".shell-button{width:44px;min-width:44px;height:44px;min-height:44px;margin:auto;padding:0;border:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 72%,transparent);background:var(--card-background-color,#fff);border-radius:16px;display:grid;place-items:center;box-shadow:0 7px 20px rgba(23,45,76,.08)}",
       ".shell-button ha-icon{--mdc-icon-size:25px;width:25px;height:25px}",
       ".menu{justify-self:start;color:var(--primary-text-color,#17191c)}",
-      ".refresh{justify-self:end;color:var(--primary-text-color,#17191c);transition:color .18s ease,background .18s ease,transform .12s ease}",
+      ".refresh{justify-self:end;color:var(--refresh-arrow);background:var(--refresh-surface)}",
       ".refresh:disabled{opacity:1;cursor:progress}",
       ".refresh.refresh-busy ha-icon{animation:lider-refresh-spin 900ms linear infinite}",
       ".refresh.refresh-success{color:#43a047}",
       ".refresh.refresh-error{color:#e53935}",
-      ".shell-button:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 10%,var(--card-background-color,#fff));color:var(--primary-color,#03a9d9)}",
+      ".menu:active{background:color-mix(in srgb,var(--primary-color,#03a9d9) 10%,var(--card-background-color,#fff));color:var(--primary-color,#03a9d9)}",
       ".refresh-feedback{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}",
-      ".refresh-feedback.visible{z-index:35;top:calc(66px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:auto;height:auto;margin:0;padding:8px 12px;overflow:visible;clip-path:none;white-space:nowrap;border:1px solid color-mix(in srgb,#e53935 30%,var(--divider-color,#dfe3e8));border-radius:13px;background:color-mix(in srgb,#e53935 10%,var(--card-background-color,#fff));box-shadow:0 5px 16px rgba(23,45,76,.08);color:#e53935;font-size:12px;font-weight:700;pointer-events:none}",
+      ".refresh-feedback.visible{z-index:35;top:calc(66px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:auto;height:auto;margin:0;padding:8px 12px;overflow:visible;clip-path:none;white-space:nowrap;border:1px solid color-mix(in srgb,var(--lider-error) 30%,var(--divider-color,#dfe3e8));border-radius:13px;background:color-mix(in srgb,var(--lider-error) 10%,var(--lider-card));box-shadow:0 5px 16px rgba(23,45,76,.08);color:var(--lider-error);font-size:12px;font-weight:700;pointer-events:none}",
       ".viewport{position:relative;z-index:1;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;touch-action:pan-y;-webkit-overflow-scrolling:touch;overflow-anchor:none}",
       ".viewport.zoomed{overflow:hidden;overscroll-behavior:none;touch-action:none}",
       ".viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:hidden}",
@@ -1705,36 +1712,40 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".hero,.panel-card,.thresholds{border:1px solid var(--divider-color,#dfe3e8);background:var(--card-background-color,#fff);border-radius:22px;box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.07))}",
       ".hero{min-height:110px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}",
       ".hero.compact{min-height:80px;padding:12px 16px}",
-      ".installation{position:relative;min-height:576px;aspect-ratio:.70;padding:8px;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:color-mix(in srgb,var(--card-background-color,#fff) 95%,var(--primary-color,#03a9d9) 5%);box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));display:grid;grid-template-rows:92px minmax(0,1fr);isolation:isolate}",
+      ".installation{position:relative;min-height:576px;aspect-ratio:.70;padding:8px;border-radius:22px;overflow:hidden;border:1px solid var(--divider-color,#dfe3e8);background:color-mix(in srgb,var(--card-background-color,#fff) 95%,var(--primary-color,#03a9d9) 5%);box-shadow:var(--ha-card-box-shadow,0 2px 8px rgba(0,0,0,.09));display:grid;grid-template-rows:auto minmax(0,1fr);isolation:isolate}",
       ".overview-page .installation{min-height:0;aspect-ratio:auto}",
-      ".installation-header{position:relative;min-width:0;overflow:hidden;padding:8px 6px 10px;display:grid;grid-template-columns:minmax(0,1fr) 168px;align-items:center;gap:10px}",
+      ".installation-header{position:relative;min-width:0;overflow:hidden;padding:8px 6px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}",
       ".installation-accent{position:absolute;z-index:0;right:-44px;top:-74px;width:205px;height:205px;border-radius:50%;background:color-mix(in srgb,var(--primary-color,#03a9d9) 12%,var(--card-background-color,#fff));pointer-events:none}",
       ".installation-scene{position:relative;min-height:0;overflow:hidden;border-radius:18px;background:#e7e6e1 url('/lider_voltage_control_panel/assets/lider-room-background-v1.webp?v=0.3.2') center center/cover no-repeat;isolation:isolate}",
       ".installation-equipment{position:absolute;z-index:1;left:54%;bottom:1%;height:79%;width:auto;max-width:60%;object-fit:contain;transform:translateX(-50%);filter:drop-shadow(0 12px 13px rgba(26,31,35,.18));pointer-events:none;user-select:none}",
-      ".installation-scene:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent 78%,rgba(20,24,28,.18));pointer-events:none}",
-      ".scene-heading{position:relative;z-index:2;min-width:0;max-width:45%}",
+      ".installation-scene:after{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.17),transparent 28%,transparent calc(100% - 100px),rgba(20,24,28,.64) calc(100% - 34px),rgba(20,24,28,.72));pointer-events:none}",
+      ".scene-heading{position:relative;z-index:2;min-width:0;color:var(--lider-text)}",
       ".scene-heading h1{font-size:22px;line-height:1.02;margin-top:3px}",
-      ".scene-heading p{margin-top:3px;color:#4d555d;font-size:12px;line-height:1.2}",
-      ".overall{position:relative;z-index:2;width:168px;height:58px;min-width:168px;padding:10px 12px;border:1px solid;border-radius:18px;display:grid;grid-template-columns:10px minmax(0,auto);grid-template-rows:auto auto;align-items:center;column-gap:11px;row-gap:1px;text-align:left;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.09)}",
-      ".status-lamp{grid-column:1;grid-row:1;width:10px;height:10px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 18%,transparent),0 0 8px color-mix(in srgb,currentColor 58%,transparent)}",
-      ".status-main{grid-column:2;grid-row:1;font-size:16px;font-weight:700;line-height:1.15}",
-      ".status-sub{grid-column:2;grid-row:2;font-size:13px;font-weight:550;line-height:1.2}",
-      ".status-sub.freshness-current{color:var(--secondary-text-color,#68737d)}",
-      ".status-sub.freshness-stale{color:var(--warning-color,#ed8b00)}",
-      ".status-sub.freshness-unknown{color:var(--disabled-text-color,#9aa0a6)}",
-      ".scene-phase{position:absolute;z-index:5;width:29%;display:grid;grid-template-columns:1fr;gap:5px;padding:8px;border:1px solid rgba(255,255,255,.76);border-radius:16px;background:rgba(255,255,255,.91);box-shadow:0 5px 16px rgba(40,48,56,.14);backdrop-filter:blur(9px)}",
+      ".scene-heading p{margin-top:3px;color:var(--lider-secondary);font-size:12px;line-height:1.2}",
+      ".connection-status{position:relative;z-index:2;display:flex;align-items:center;gap:3px;--connection-color:var(--lider-unknown);--freshness-color:var(--lider-unknown)}",
+      ".connection-status[data-connection=local]{--connection-color:var(--lider-good)}.connection-status[data-connection=offline]{--connection-color:var(--lider-warning)}",
+      ".connection-status[data-freshness=fresh]{--freshness-color:var(--lider-good)}.connection-status[data-freshness=stale]{--freshness-color:var(--lider-warning)}",
+      ".connection-icon,.freshness-indicator{display:inline-flex;align-items:center;justify-content:center;min-height:44px;gap:7px}",
+      ".connection-icon{min-width:44px;padding:0;border:0;border-radius:12px;background:transparent;color:var(--connection-color);cursor:pointer}",
+      ".freshness-indicator{min-width:30px;color:var(--freshness-color)}",
+      ".connection-status ha-icon{--mdc-icon-size:22px;width:22px;height:22px;flex:none}",
+      ".freshness-icon{position:relative;display:inline-flex}",
+      ".freshness-question{position:absolute;bottom:-3px;right:-5px;min-width:13px;border-radius:50%;background:var(--lider-card);font-size:12px;font-weight:700;line-height:13px;text-align:center}",
+      ".connection-status-detail{flex-wrap:wrap;column-gap:14px;font-size:13px;font-weight:600}",
+      ".connection-status-detail .connection-icon{padding-inline:4px}",
+      ".scene-phase{position:absolute;z-index:5;width:29%;display:grid;grid-template-columns:minmax(0,1fr);gap:5px;padding:8px;border:1px solid var(--divider-color,#dfe3e8);border-radius:16px;background:var(--lider-card);color:var(--lider-text);box-shadow:0 5px 16px rgba(40,48,56,.14)}",
       ".scene-phase.side-input{left:10px;width:31%}",
       ".scene-phase.side-output{right:10px}",
-      ".scene-phase>strong{font-size:12px;line-height:1.15;text-align:center;white-space:nowrap}",
+      ".scene-phase>strong{font-size:12px;line-height:1.15;text-align:center;text-wrap:balance}",
       ".scene-phase.phase-a{top:40%}.scene-phase.phase-b{top:59%}.scene-phase.phase-c{top:78%}",
       ".scene-phase.phase-a,.scene-phase.phase-b,.scene-phase.phase-c{transform:translateY(-50%)}",
       ".input-metrics{min-width:0;display:grid;grid-template-columns:.92fr 1.08fr;gap:5px}",
       ".scene-reading{min-width:0;border:0;border-radius:10px;padding:6px 4px;display:flex;flex-direction:column;gap:2px;align-items:center}",
-      ".scene-reading span{font-size:12px;color:var(--secondary-text-color,#69737d)}",
+      ".scene-reading span,.scene-power span{max-width:100%;overflow-wrap:anywhere;text-align:center;font-size:12px;color:var(--lider-secondary)}",
       ".scene-reading b{font-size:12px;white-space:nowrap}",
       ".scene-quality{min-height:0;font-size:12px;line-height:1.05;text-align:center;white-space:normal;color:inherit}",
-      ".scene-power{min-width:0;border:0;border-radius:10px;padding:6px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 8%,#fff)}",
-      ".scene-power span{font-size:12px;color:var(--secondary-text-color,#69737d)}.scene-power b{font-size:12px;white-space:nowrap}",
+      ".scene-power{min-width:0;border:0;border-radius:10px;padding:6px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:color-mix(in srgb,var(--primary-color,#03a9d9) 8%,var(--lider-card))}",
+      ".scene-power b{font-size:12px;white-space:nowrap}",
       ".installation-caption{position:absolute;z-index:4;left:16px;right:16px;bottom:13px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;color:#fff;text-shadow:0 2px 7px rgba(0,0,0,.8)}",
       ".installation-caption span{font-size:12px;letter-spacing:.1em;font-weight:750}",
       ".installation-caption strong{font-size:13px}.installation-caption span,.installation-caption strong{white-space:nowrap}",
@@ -1754,7 +1765,7 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".metric{min-width:0;min-height:76px;padding:7px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:1px solid var(--divider-color,#dfe3e8);border-radius:15px;background:color-mix(in srgb,var(--secondary-text-color,#68737d) 5%,var(--card-background-color,#fff))}",
       ".metric.large{min-height:94px}",
       ".metric.phase-measurement{min-height:68px}",
-      ".metric-label{color:var(--secondary-text-color,#68737d);font-size:12px}",
+      ".metric-label{color:var(--lider-secondary);font-size:12px}",
       ".metric strong{font-size:20px}",
       ".metric small{font-size:12px;line-height:1.2}",
       ".diagnostic-section{display:grid;gap:6px}",
@@ -1793,14 +1804,13 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".raw-row{min-width:0;display:grid;grid-template-columns:minmax(108px,.8fr) minmax(0,1.4fr);gap:10px;padding:7px 2px;border-bottom:1px solid color-mix(in srgb,var(--divider-color,#dfe3e8) 55%,transparent)}",
       ".raw-row span{font-size:12px;color:var(--secondary-text-color,#68737d);overflow-wrap:anywhere}.raw-row strong{min-width:0;font-size:13px;font-weight:650;text-align:right;overflow-wrap:anywhere;word-break:break-word}.raw-state strong{font-size:15px;color:var(--primary-text-color,#17191c)}",
       ".raw-empty{margin:0;padding:8px 2px;font-size:13px;color:var(--secondary-text-color,#68737d)}",
-      ".normal{color:var(--success-color,#2e7d32);background:color-mix(in srgb,var(--success-color,#2e7d32) 11%,#fff);border-color:color-mix(in srgb,var(--success-color,#2e7d32) 30%,transparent)}",
-      ".attention{color:var(--warning-color,#ed8b00);background:color-mix(in srgb,var(--warning-color,#ed8b00) 12%,#fff);border-color:color-mix(in srgb,var(--warning-color,#ed8b00) 32%,transparent)}",
-      ".stale{color:var(--warning-color,#ed8b00);background:color-mix(in srgb,var(--warning-color,#ed8b00) 8%,#fff);border-color:color-mix(in srgb,var(--warning-color,#ed8b00) 24%,transparent)}",
-      ".significant{color:#d96500;background:#fff1e5;border-color:#efad71}",
-      ".emergency{color:var(--error-color,#d32f2f);background:color-mix(in srgb,var(--error-color,#d32f2f) 10%,#fff);border-color:color-mix(in srgb,var(--error-color,#d32f2f) 30%,transparent)}",
+      ".normal{--reading-tone:var(--lider-good)}",
+      ".attention,.stale{--reading-tone:var(--lider-warning)}",
+      ".significant{--reading-tone:var(--lider-significant)}",
+      ".emergency{--reading-tone:var(--lider-error)}",
+      ".unavailable{--reading-tone:var(--lider-unknown)}",
+      ".normal,.attention,.stale,.significant,.emergency,.unavailable{color:var(--reading-tone);background:color-mix(in srgb,var(--reading-tone) 11%,var(--lider-card));border-color:color-mix(in srgb,var(--reading-tone) 30%,transparent)}",
       ".neutral{color:var(--primary-text-color,#17191c);background:color-mix(in srgb,var(--primary-color,#03a9d9) 6%,var(--card-background-color,#fff));border-color:color-mix(in srgb,var(--primary-color,#03a9d9) 18%,var(--divider-color,#dfe3e8))}",
-      ".unavailable{color:var(--secondary-text-color,#68737d);background:color-mix(in srgb,var(--secondary-text-color,#68737d) 8%,#fff);border-color:var(--divider-color,#dfe3e8)}",
-      ".overall.unavailable{color:var(--disabled-text-color,#9aa0a6)}",
       ".tabs{position:relative;z-index:20;min-width:0;min-height:0;padding:6px calc(6px + env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) calc(6px + env(safe-area-inset-left,0px));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;background:var(--card-background-color,#fff);border-top:1px solid var(--divider-color,#dfe3e8);box-shadow:0 -5px 22px rgba(23,45,76,.08)}",
       ".tabs button{min-width:0;height:52px;padding:2px 3px 6px;border:0;background:transparent;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:var(--secondary-text-color,#68737d);font-size:12px;font-weight:700;line-height:1;overflow:hidden}",
       ".tabs button ha-icon{--mdc-icon-size:26px;width:26px;height:26px;flex:0 0 26px}",
@@ -1809,13 +1819,14 @@ class LiderVoltageControlPanel extends HTMLElement {
       ".zoom-toast{position:absolute;z-index:40;left:50%;top:calc(68px + env(safe-area-inset-top));transform:translate(-50%,-12px);opacity:0;padding:8px 13px;border-radius:999px;background:rgba(30,34,38,.9);color:#fff;font-size:12px;transition:.2s;pointer-events:none}",
       ".zoom-toast.show{opacity:1;transform:translate(-50%,0)}",
       "@keyframes lider-refresh-spin{to{transform:rotate(360deg)}}",
-      "@media (prefers-reduced-motion:reduce){.refresh.refresh-busy ha-icon{animation:none}.refresh.refresh-busy{background:color-mix(in srgb,var(--primary-color,#03a9d9) 12%,var(--card-background-color,#fff))}}",
+      "@media (prefers-reduced-motion:reduce){.refresh.refresh-busy ha-icon{animation:none}.refresh.refresh-busy{box-shadow:inset 0 0 0 2px var(--primary-color,#03a9d9)}}",
       "@media (max-width:560px){.scene-heading p{white-space:nowrap}.scene-phase.side-input{width:31%}.input-metrics{grid-template-columns:1fr;gap:3px}.side-input .scene-reading,.side-input .scene-power{padding:3px;gap:1px}.side-input .scene-reading span,.side-input .scene-power span{line-height:1.05}.side-input .scene-reading b,.side-input .scene-power b{line-height:1.15}.scene-phase.side-output{padding-block:7px;gap:4px}.side-output .scene-reading{padding:5px 3px}}",
       "@media (max-height:700px){.viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:auto}.overview-page{height:auto}.overview-page .installation{min-height:600px}}",
       "@container nikas-panel (min-width:600px){.canvas{padding-inline:16px}}",
       "@container nikas-panel (min-width:1024px){.canvas{padding-inline:24px}}",
       "@container nikas-panel (max-width:560px){.installation-equipment{left:55%;bottom:1%;height:86%;max-width:62%}.installation-scene{display:grid;grid-template-columns:31% minmax(0,1fr) 29%;grid-template-rows:14% repeat(3,minmax(92px,1fr)) 38px;padding:4px 7px 0}.scene-phase{position:relative;left:auto;right:auto;width:100%;align-self:center;padding:3px 5px;gap:1px}.scene-phase.phase-a{top:auto;transform:none;grid-row:2}.scene-phase.phase-b{top:auto;transform:none;grid-row:3}.scene-phase.phase-c{top:auto;transform:none;grid-row:4}.scene-phase.side-input{grid-column:1;left:auto;width:100%}.scene-phase.side-output{grid-column:3;right:auto;width:100%;padding-block:4px;gap:2px}.input-metrics{grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:6px}.side-input .scene-reading,.side-input .scene-power{min-height:0;padding:1px;gap:0}.side-output .scene-reading{padding:3px 2px}.installation-caption{position:relative;grid-column:1/-1;grid-row:5;left:auto;right:auto;bottom:auto;align-self:center}.installation-caption span{font-size:12px}.installation-caption strong{font-size:12px}}",
-      "@container nikas-panel (max-width:420px){.title-return{min-width:0;width:100%;padding-inline:8px}.title strong{font-size:21px}.title small{font-size:13px}.canvas{padding:10px 10px 20px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:600px;grid-template-rows:88px minmax(0,1fr)}.installation-header{padding:6px 2px 9px;gap:4px}.scene-heading{max-width:100%}.scene-heading h1{font-size:16px;overflow-wrap:anywhere}.scene-heading p{white-space:normal}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.overall{width:168px;height:58px;min-width:168px;white-space:nowrap}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
+      "@container nikas-panel (max-width:420px){.canvas{padding:10px 10px 20px}.hero{padding:14px}.hero.compact{padding:10px 14px}.hero h1{font-size:22px}.installation{min-height:600px}.installation-header{padding:6px 2px 9px;gap:4px}.scene-heading h1{font-size:16px;overflow-wrap:anywhere}.scene-heading p{white-space:normal}.metric strong{font-size:18px}.line-card{grid-template-columns:1fr 128px}.badge{white-space:normal}.raw-row{grid-template-columns:minmax(96px,.75fr) minmax(0,1.25fr)}}",
+      "@container nikas-panel (max-width:359px){.header{grid-template-columns:48px minmax(0,1fr) 48px}.title-return{width:100%;padding-inline:8px}.title strong{font-size:20px}.title small{font-size:clamp(11px,calc((100cqi - 135px) * .055),12px)}.installation-scene{grid-template-columns:33% minmax(0,1fr) 32%}}",
     ].join("");
   }
 }

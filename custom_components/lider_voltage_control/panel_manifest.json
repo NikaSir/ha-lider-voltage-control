@@ -6,7 +6,7 @@
   "icon": "mdi:transmission-tower",
   "owner": "lider_voltage_control",
   "preferred_view": "overview",
-  "ui_version": "0.8.13",
+  "ui_version": "0.8.14",
   "template_version": "2.2",
   "module_url": "lider-voltage-control-panel.js",
   "frontend_delivery": {
@@ -32,7 +32,7 @@
   "shell": {
     "header_left_action": "hass-toggle-menu",
     "header_center_action": "navigate_to_declared_parent",
-    "header_center_lines": ["title", "ui_version"],
+    "header_center_lines": ["title", "ui_version / integration_version"],
     "header_history_back_allowed": false,
     "header_return_route_capture": ["parent_route"],
     "header_return_route_capture_once": true,
@@ -44,7 +44,7 @@
     "header_button_px": 44,
     "header_icon_px": 25,
     "header_refresh_on_card": true,
-    "header_refresh_tone": "primary",
+    "header_refresh_tone": {"light": "black_on_white", "dark": "white_on_dark"},
     "header_refresh_action": {
       "service": "homeassistant.update_entity",
       "scope": "existing_related_telemetry",
@@ -83,7 +83,7 @@
     "fills_work_viewport": true,
     "vertical_scroll_at_100_percent": false,
     "status_header_separate_from_photo": true,
-    "status_badge_px": [168, 58],
+    "status_indicators": ["connection", "freshness"],
     "decorative_accent": "primary_blue_circle_205px",
     "mobile_input_metrics": "two_stacked_rows",
     "mobile_input_labels": ["Мощность", "Напряжение"],

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import json
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -37,6 +38,8 @@ panel_custom = ModuleType("homeassistant.components.panel_custom")
 async def register_panel(**kwargs) -> None:
     path = kwargs["frontend_url_path"]
     assert path not in existing_routes
+    manifest = json.loads((PROJECT_ROOT / "custom_components/lider_voltage_control/manifest.json").read_text())
+    assert kwargs["config"]["integration_version"] == manifest["version"]
     existing_routes.add(path)
     registered_routes.append(path)
 

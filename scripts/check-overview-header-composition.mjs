@@ -56,7 +56,6 @@ vm.createContext(context);
 vm.runInContext(bundle + "\nthis.Panel = LiderVoltageControlPanel;", context);
 
 const panel = new context.Panel();
-panel._connectionBadge = () => '<button class="overall">Связь</button>';
 panel._scenePhase = (phase) => `<div class="scene-phase">${phase}</div>`;
 panel._lineCard = () => '<section class="line-card">Линия</section>';
 
@@ -66,7 +65,7 @@ const styles = panel._styles();
 const headerStart = overview.indexOf('class="installation-header"');
 const accent = overview.indexOf('class="installation-accent"');
 const heading = overview.indexOf('class="scene-heading"');
-const connection = overview.indexOf('class="overall"');
+const connection = overview.indexOf('class="connection-status"');
 const sceneStart = overview.indexOf('class="installation-scene"');
 const equipment = overview.indexOf('class="installation-equipment"');
 const phase = overview.indexOf('class="scene-phase"');
@@ -78,6 +77,23 @@ if (!(headerStart >= 0 && accent > headerStart && heading > headerStart &&
   throw new Error(
     "overview must keep heading and connection in a separate accented header above the photo scene",
   );
+}
+
+if (!overview.includes('icon="mdi:cloud-question-outline"') ||
+    !overview.includes('icon="mdi:clock-outline"') || !overview.includes('aria-hidden="true">?</span>') ||
+    overview.includes('class="overall')) {
+  throw new Error("unknown connection and freshness need separate compact symbols");
+}
+
+panel._connectionState = () => "local";
+panel._telemetryFreshness = () => ({ key: "stale", label: "Данные устарели" });
+const reachableButStale = panel._connectionIndicators();
+if (!reachableButStale.includes('icon="mdi:cloud"') ||
+    !reachableButStale.includes('icon="mdi:clock-alert-outline"') ||
+    !reachableButStale.includes('aria-label="Связь есть (локально)"') ||
+    !reachableButStale.includes('aria-label="Свежесть входных напряжений: Данные устарели"') ||
+    !panel._diagnosticsView().includes("Данные устарели")) {
+  throw new Error("a reachable meter with old phase readings needs independent indicators and a diagnostic caption");
 }
 
 const installationTag = overview.match(/<section class="installation"[^>]*>/)?.[0] ?? "";
@@ -94,11 +110,11 @@ if (!overview.includes("LIDER PS-7500W-30 · 3 шт.") || overview.includes("PS7
 
 for (const rule of [
   ".installation-accent{position:absolute;z-index:0;right:-44px;top:-74px;width:205px;height:205px",
-  ".overall{position:relative;z-index:2;width:168px;height:58px",
+  ".connection-status{position:relative;z-index:2;display:flex",
   ".installation-scene{position:relative;min-height:0;overflow:hidden;border-radius:18px",
   ".overview-page{height:100%;min-height:0;grid-template-rows:minmax(0,1fr) auto}",
   ".viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:hidden}",
-  ".installation-header{position:relative;min-width:0;overflow:hidden;padding:8px 6px 10px;display:grid;grid-template-columns:minmax(0,1fr) 168px",
+  ".installation-header{position:relative;min-width:0;overflow:hidden;padding:8px 6px 10px;display:grid;grid-template-columns:minmax(0,1fr) auto",
   "@media (max-height:700px){.viewport[data-view=\"overview\"]:not(.zoomed){overflow-y:auto}.overview-page{height:auto}.overview-page .installation{min-height:600px}}",
 ]) {
   if (!styles.includes(rule)) {

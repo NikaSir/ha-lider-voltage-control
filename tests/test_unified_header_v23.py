@@ -7,10 +7,13 @@ SOURCE = (ROOT / "custom_components/lider_voltage_control/frontend/lider-voltage
 SHELL = (ROOT / "templates/shell_v2/nikas-specialized-shell.js").read_text(encoding="utf-8")
 
 
-def test_refresh_action_is_black_at_rest():
-    assert '".refresh{justify-self:end;color:var(--primary-text-color,#17191c);' in PANEL
-    assert '".refresh{justify-self:end;color:var(--primary-text-color,#17191c);' in SOURCE
-    assert ".nikas-shell__side-action--right{justify-self:end;color:var(--primary-text-color,#17191c)}" in SHELL
+def test_refresh_action_follows_the_active_ha_theme():
+    for artifact in (SOURCE, PANEL):
+        assert "this._hass?.themes?.darkMode" in artifact
+        assert "--refresh-arrow:#000;--refresh-surface:#fff" in artifact
+        assert "--refresh-arrow:#fff;--refresh-surface:color-mix" in artifact
+        assert ".refresh{justify-self:end;color:var(--refresh-arrow);background:var(--refresh-surface)}" in artifact
+    assert '.nikas-shell__side-action--refresh[data-nikas-color-mode="light"]{color:#000;background:#fff}' in SHELL
 
 def test_hero_accent_uses_canonical_density():
     canonical = ".installation-accent{position:absolute;z-index:0;right:-44px;top:-74px;width:205px;height:205px;border-radius:50%;background:color-mix(in srgb,var(--primary-color,#03a9d9) 12%,var(--card-background-color,#fff))"

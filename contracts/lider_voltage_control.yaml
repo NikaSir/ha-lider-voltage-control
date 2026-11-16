@@ -3,7 +3,7 @@ kind: LiderVoltageControlContract
 metadata:
   id: lider.voltage_control
   title: Электросеть
-  version: 0.8.13
+  version: 0.8.14
 spec:
   read_only: true
   refresh_action:
@@ -11,6 +11,7 @@ spec:
     service: homeassistant.update_entity
     target_selection: existing_related_entities_only
     history_reload: active_period_only
+    appearance: {light: black_on_white, dark: white_on_dark}
     success: all_required_requests_explicitly_succeeded
     minimum_busy_ms: 900
     result_visible_ms: 1400
@@ -84,7 +85,7 @@ spec:
     fills_work_viewport: true
     vertical_scroll_at_100_percent: false
     status_header_separate_from_photo: true
-    status_badge_px: [168, 58]
+    status_indicators: [connection, freshness]
     decorative_accent: primary_blue_circle_205px
     mobile_input_metrics: two_stacked_rows
     metric_order: [power, voltage]
@@ -151,10 +152,11 @@ spec:
     source: binary_sensor.power_meter_online
     transport: local_only
     command_capability: none
+    diagnostic_caption: input_meter
     states:
-      "on": Локально
-      "off": Нет связи
-      unknown_or_unavailable: Нет данных
+      "on": Связь есть (локально)
+      "off": Связь потеряна
+      unknown_or_unavailable: Связь неизвестна
     telemetry_freshness:
       source_timestamp: last_reported
       fallback_timestamp: last_updated

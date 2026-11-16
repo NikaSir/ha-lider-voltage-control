@@ -4,6 +4,11 @@
 **Applies to:** HO-SC-8W, S8 OMNI, NikaS Climate, LIDER, Keenetic Hero 4G+ and Stark SolarPower  
 **Reference geometry:** S8 OMNI / Keenetic approved header composition
 
+The title and refresh appearance for current LIDER builds follow the newer
+[NikaS UI Standard §2](NIKAS_SPECIALIZED_PANEL_UI_STANDARD.md#2-header) and
+[Refresh Action Contract v1.3](NIKAS_REFRESH_ACTION_CONTRACT.md). The clauses
+below record the earlier unified-header baseline.
+
 This contract is a narrow compatibility overlay for NikaS UI Standard v2.2 and
 Refresh Action Contract v1.1. Where those documents prescribe
 `var(--primary-color)` for the refresh glyph, this contract supersedes that

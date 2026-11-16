@@ -65,7 +65,7 @@ def main() -> None:
         "Center title plaque — open the immediate parent",
         "history.pushState()",
         "history.back()",
-        "exact form `UI vX.Y.Z`",
+        "exact form `UI vX.Y.Z / A.B.C`",
         "focus state and pressed response",
         "Data truth and command safety",
         "Production bundle and version coherence",
@@ -142,7 +142,7 @@ def main() -> None:
     require(lamp.get("accessible_status_required") is True, "status lamps require accessible text")
 
     refresh = config.get("refresh_action_feedback", {})
-    require(refresh.get("version") == "1.1", "NikaS refresh action contract version must be 1.1")
+    require(refresh.get("version") == "1.3", "NikaS refresh action contract version must be 1.3")
     require(refresh.get("status") == "required", "refresh action contract must be required")
     require(refresh.get("minimum_visible_ms") == 900, "refresh busy state must remain visible for 900 ms")
     require(refresh.get("busy_until") == "request_settled_and_minimum_elapsed", "refresh busy completion rule drift")
@@ -150,6 +150,9 @@ def main() -> None:
     require(refresh.get("freshness") == "accepted_sample_only", "refresh must not fabricate telemetry freshness")
     require(refresh.get("update_mode") == "point-patch", "refresh feedback must patch the mounted DOM")
     completion = refresh.get("completion_feedback", {})
+    theme_colors = {"light": "#000000", "dark": "#ffffff"}
+    require(completion.get("idle_color") == theme_colors, "refresh idle glyph must follow the active theme")
+    require(completion.get("busy_color") == theme_colors, "refresh busy glyph must follow the active theme")
     require(completion.get("visible_ms") == 1400, "refresh result must remain visible for 1400 ms")
     require(completion.get("success_icon") == "mdi:check", "refresh success icon drift")
     require(completion.get("success_color") == "#43a047", "refresh success color drift")

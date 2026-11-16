@@ -5,6 +5,12 @@
 
 # Changelog
 
+## Integration 0.8.12-beta004 / UI 0.8.14 — 2026-11-16
+
+- Applies NikaS Header variant B with a complete UI and integration version line and a theme-aware refresh button.
+- Uses two independent indicators for the input meter connection and input-voltage freshness. Both statuses are also available in diagnostics.
+- Matches phase-card surfaces to the Home Assistant theme and improves contrast for phase labels, power, voltage and quality states.
+
 ## Integration 0.8.11 / UI 0.8.10 — 2026-09-14
 
 - Separates the mobile input power and voltage cards by 6 px and places phases A/B/C in three unshifted grid rows.
