@@ -9,7 +9,7 @@ const source = fs.readFileSync(
 );
 
 const refreshContract = config.refresh_action_feedback;
-assert.equal(refreshContract?.version, "1.1");
+assert.equal(refreshContract?.version, "1.3");
 assert.equal(refreshContract?.status, "required");
 assert.equal(refreshContract?.minimum_visible_ms, 900);
 assert.equal(refreshContract?.completion_feedback?.visible_ms, 1400);

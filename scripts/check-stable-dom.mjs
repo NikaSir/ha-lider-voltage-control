@@ -30,9 +30,9 @@ if ([...bundle.matchAll(/this\._tabButton\("/g)].length !== 5 || bundle.includes
 }
 
 for (const marker of [
-  'const LIDER_UI_VERSION = "0.8.13"',
-  '.title{text-align:center;display:grid;place-content:center;line-height:1.08}',
-  '.title small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px',
+  'const LIDER_UI_VERSION = "0.8.14"',
+  '.title{text-align:center;display:grid;grid-template-columns:minmax(0,1fr);align-content:center;justify-items:center;line-height:1.08}',
+  '.title small{display:block;max-width:100%;white-space:nowrap;font-size:clamp(11px',
   'const NIKAS_SHELL_V2_VERSION = "2.1"',
   'const PANEL_TITLE = "Электросеть"',
   'new Set(["overview", "before", "after", "history", "diagnostics"])',
@@ -235,14 +235,23 @@ if (frames.size !== 1) throw new Error("multiple hass updates must coalesce into
 flushFrames();
 if (livePatches !== 1) throw new Error("coalesced hass updates must patch the mounted DOM once");
 
-let badgePatches = 0;
+panel._versionCaption = { textContent: "UI v0.8.14 / —" };
+panel.panel = { config: { integration_version: "0.8.12-beta004" } };
+if (panel._versionCaption.textContent !== "UI v0.8.14 / 0.8.12-beta004") {
+  throw new Error("late panel config must update the full version line in place");
+}
+
+let indicatorPatches = 0;
 panel._view = "overview";
 panel.isConnected = true;
 panel._statusTimer = null;
-panel._updateConnectionBadge = () => { badgePatches += 1; };
+panel._updateConnectionIndicators = () => { indicatorPatches += 1; };
 panel._startStatusTimer();
 intervalCallback();
-if (badgePatches !== 1) throw new Error("freshness timer must patch only the indicator category");
+if (indicatorPatches !== 1) throw new Error("freshness timer must patch only the indicator category");
+panel._view = "diagnostics";
+intervalCallback();
+if (indicatorPatches !== 2) throw new Error("diagnostic captions must also follow freshness expiry");
 
 const registryPanel = new context.Panel();
 registryPanel._mounted = true;

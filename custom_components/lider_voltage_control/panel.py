@@ -8,7 +8,7 @@ from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, VERSION
 
 PANEL_ID = "lider"
 PANEL_TITLE = "Электросеть"
@@ -16,7 +16,7 @@ PANEL_URL_PATH = "dashboard-lider"
 PANEL_PARENT_ROUTE = "/home/overview"
 PANEL_ICON = "mdi:transmission-tower"
 PANEL_WEB_COMPONENT = "lider-voltage-control-panel"
-PANEL_UI_VERSION = "0.8.13"
+PANEL_UI_VERSION = "0.8.14"
 PANEL_TEMPLATE_VERSION = "2.2"
 PANEL_STATIC_URL = "/lider_voltage_control_panel"
 PANEL_STATIC_REGISTERED = "panel_static_registered"
@@ -33,6 +33,7 @@ PANEL_METADATA = {
     "owner": DOMAIN,
     "preferred_view": "overview",
     "ui_version": PANEL_UI_VERSION,
+    "integration_version": VERSION,
     "template_version": PANEL_TEMPLATE_VERSION,
     "frontend_bundle": PANEL_BUNDLE,
 }
