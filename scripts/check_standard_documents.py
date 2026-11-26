@@ -8,7 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 
-EXPECTED = {'standard': '39691a1e8ad5b98a961d518ab7b38761f3b04e7f7eb032dc19e3c68b4f249083', 'navigation_contract': '26269e700cffa7cc1b0a2f93ff6314ed3d366f988460168c312324511f282423'}
+EXPECTED = {'standard': 'be66deb5712edbd6075cc09311fdcd94025434e26c7d1a996b22588bff5547d7', 'navigation_contract': '26269e700cffa7cc1b0a2f93ff6314ed3d366f988460168c312324511f282423'}
 VERSIONS = {'version': '2.2', 'navigation_contract_version': '1.3'}
 
 def validate(root):
